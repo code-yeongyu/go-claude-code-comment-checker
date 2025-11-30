@@ -9,31 +9,166 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: macos-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.23"
 
-      - name: Install cross-compilers
+      - name: Install cross-compiler (Linux ARM64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
-          brew tap messense/macos-cross-toolchains
-          brew install x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
-          brew install FiloSottile/musl-cross/musl-cross
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
+        run: |
+          go build -ldflags="-s -w" -o comment-checker ./cmd/comment-checker
+          tar -czvf comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz comment-checker LICENSE README.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+          name: comment-checker_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: comment-checker_*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum *.tar.gz > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.tar.gz
+            artifacts/checksums.txt
+          body: |
+            ## Installation
+
+            ### Homebrew (macOS)
+            ```bash
+            brew tap code-yeongyu/tap
+            brew install comment-checker
+            ```
+
+            ### Go Install
+            ```bash
+            go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-checker@latest
+            ```
+
+            ### Manual Download
+            Download the appropriate binary for your platform from the assets below.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download darwin-arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: comment-checker_darwin_arm64
+          path: artifacts
+
+      - name: Download darwin-amd64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: comment-checker_darwin_amd64
+          path: artifacts
+
+      - name: Get checksums
+        id: checksums
+        run: |
+          ARM64_SHA=$(sha256sum artifacts/comment-checker_${{ github.ref_name }}_darwin_arm64.tar.gz | cut -d ' ' -f 1)
+          AMD64_SHA=$(sha256sum artifacts/comment-checker_${{ github.ref_name }}_darwin_amd64.tar.gz | cut -d ' ' -f 1)
+          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
+          echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew Formula
+        env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          
+          cat > formula.rb << 'EOF'
+          class CommentChecker < Formula
+            desc "Multi-language comment detection hook for Claude Code. 100% vibe coded."
+            homepage "https://github.com/code-yeongyu/go-claude-code-comment-checker"
+            version "VERSION_PLACEHOLDER"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/code-yeongyu/go-claude-code-comment-checker/releases/download/vVERSION_PLACEHOLDER/comment-checker_vVERSION_PLACEHOLDER_darwin_arm64.tar.gz"
+                sha256 "ARM64_SHA_PLACEHOLDER"
+              else
+                url "https://github.com/code-yeongyu/go-claude-code-comment-checker/releases/download/vVERSION_PLACEHOLDER/comment-checker_vVERSION_PLACEHOLDER_darwin_amd64.tar.gz"
+                sha256 "AMD64_SHA_PLACEHOLDER"
+              end
+            end
+
+            def install
+              bin.install "comment-checker"
+            end
+
+            test do
+              system "#{bin}/comment-checker", "--help"
+            end
+          end
+          EOF
+          
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION/g" formula.rb
+          sed -i "s/ARM64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.arm64_sha }}/g" formula.rb
+          sed -i "s/AMD64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.amd64_sha }}/g" formula.rb
+          
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/code-yeongyu/homebrew-tap.git
+          mkdir -p homebrew-tap/Formula
+          cp formula.rb homebrew-tap/Formula/comment-checker.rb
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/comment-checker.rb
+          git commit -m "Update comment-checker to v$VERSION"
+          git push
