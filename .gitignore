@@ -1,0 +1,15 @@
+# Build artifacts
+comment-checker
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Work notes
+ai-todolist.md
+notepad.md
