@@ -40,19 +40,24 @@ go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-ch
 
 ## 설정
 
-`~/.claude/hooks/post_tool_use.py`의 `POST_TOOL_USE_CONFIG`에 다음을 추가합니다:
+`~/.claude/settings.json` (또는 프로젝트의 `.claude/settings.json`)에 다음을 추가합니다:
 
-```python
-HookMatcher(
-    matcher="Write|Edit|MultiEdit",
-    hooks=[
-        HookCommand(
-            type="command",
-            command="comment-checker",
-            asyncable=True,
-        ),
-    ],
-),
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "comment-checker"
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
 이제 Claude가 `Write`, `Edit`, `MultiEdit` 도구를 사용할 때마다 주석을 검사합니다.

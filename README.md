@@ -1,5 +1,7 @@
 # comment-checker
 
+[한국어](README.ko.md)
+
 > 100% vibe coded. zero comments in my code, zero comments in yours.
 >
 > **this entire repo - code, docs, readme, everything - was written by LLMs.**
@@ -38,19 +40,24 @@ grab binary from [releases](https://github.com/code-yeongyu/go-claude-code-comme
 
 ## setup
 
-add to `~/.claude/hooks/post_tool_use.py`:
+add to `~/.claude/settings.json` (or `.claude/settings.json` in your project):
 
-```python
-HookMatcher(
-    matcher="Write|Edit|MultiEdit",
-    hooks=[
-        HookCommand(
-            type="command",
-            command="comment-checker",
-            asyncable=True,
-        ),
-    ],
-),
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "comment-checker"
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
 
 done. now claude will think twice before leaving `// TODO: fix later` in your code.
