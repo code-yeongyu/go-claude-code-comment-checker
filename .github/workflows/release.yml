@@ -49,7 +49,11 @@ jobs:
           CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
           CXX: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-g++' || '' }}
         run: |
-          go build -ldflags="-s -w -extldflags '-static'" -o comment-checker ./cmd/comment-checker
+          if [ "${{ matrix.goos }}" = "linux" ]; then
+            go build -ldflags="-s -w -extldflags '-static'" -o comment-checker ./cmd/comment-checker
+          else
+            go build -ldflags="-s -w" -o comment-checker ./cmd/comment-checker
+          fi
           tar -czvf comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz comment-checker LICENSE README.md
 
       - name: Upload artifact
