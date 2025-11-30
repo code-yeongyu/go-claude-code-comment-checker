@@ -7,7 +7,7 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 
-	"github.com/yeongyu/comment-checker/pkg/models"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
 // CommentDetector detects comments in source code using tree-sitter.

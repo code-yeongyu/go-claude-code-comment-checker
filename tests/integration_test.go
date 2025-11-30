@@ -8,10 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yeongyu/comment-checker/pkg/core"
-	"github.com/yeongyu/comment-checker/pkg/filters"
-	"github.com/yeongyu/comment-checker/pkg/models"
-	"github.com/yeongyu/comment-checker/pkg/output"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/core"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/filters"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/output"
 )
 
 // ============================================================================

@@ -3,7 +3,7 @@ package filters
 import (
 	"strings"
 
-	"github.com/yeongyu/comment-checker/pkg/models"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
 // BDDKeywords contains BDD-style comment keywords that should be skipped.

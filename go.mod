@@ -1,4 +1,4 @@
-module github.com/yeongyu/comment-checker
+module github.com/code-yeongyu/go-claude-code-comment-checker
 
 go 1.25.4
 

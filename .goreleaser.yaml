@@ -1,0 +1,143 @@
+version: 2
+
+project_name: comment-checker
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: darwin-amd64
+    main: ./cmd/comment-checker
+    binary: comment-checker
+    env:
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: darwin-arm64
+    main: ./cmd/comment-checker
+    binary: comment-checker
+    env:
+      - CGO_ENABLED=1
+      - CC=oa64-clang
+      - CXX=oa64-clang++
+    goos:
+      - darwin
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: linux-amd64
+    main: ./cmd/comment-checker
+    binary: comment-checker
+    env:
+      - CGO_ENABLED=1
+      - CC=x86_64-linux-gnu-gcc
+      - CXX=x86_64-linux-gnu-g++
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: linux-arm64
+    main: ./cmd/comment-checker
+    binary: comment-checker
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goos:
+      - linux
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: code-yeongyu
+    name: go-claude-code-comment-checker
+  draft: false
+  prerelease: auto
+  mode: replace
+  footer: |
+    ## Installation
+
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew tap code-yeongyu/tap
+    brew install comment-checker
+    ```
+
+    ### Go Install
+    ```bash
+    go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-checker@latest
+    ```
+
+    ### Manual Download
+    Download the appropriate binary for your platform from the assets below.
+
+brews:
+  - name: comment-checker
+    repository:
+      owner: code-yeongyu
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/code-yeongyu/go-claude-code-comment-checker"
+    description: "Multi-language comment detection hook for Claude Code. 100% vibe coded."
+    license: "MIT"
+    install: |
+      bin.install "comment-checker"
+    test: |
+      system "#{bin}/comment-checker", "--help"

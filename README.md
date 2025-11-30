@@ -1,117 +1,127 @@
 # comment-checker
 
-Multi-language comment detection for Claude Code hooks. Go implementation with tree-sitter.
+> 100% vibe coded. zero comments in my code, zero comments in yours.
+>
+> **this entire repo - code, docs, readme, everything - was written by LLMs.**
+> shoutout to claude opus 4.5.
 
-## Installation
+A PostToolUse hook for Claude Code / OpenCode that yells at you when you write unnecessary comments.
+
+Built with Go + tree-sitter. Fast. Opinionated. No mercy.
+
+## why
+
+comments are code smell. if your code needs comments to be understood, your code sucks.
+
+this hook watches every `Write`, `Edit`, `MultiEdit` and screams when it detects comments.
+
+exceptions exist. BDD comments (`# given`, `# when`, `# then`), docstrings for public APIs, linter directives (`# noqa`, `// @ts-ignore`) - these are fine. everything else? delete it.
+
+## install
+
+### homebrew (macos/linux)
 
 ```bash
-go build ./cmd/comment-checker
+brew tap code-yeongyu/tap
+brew install comment-checker
 ```
 
-Or install globally:
+### go install
 
 ```bash
-go install github.com/yeongyu/comment-checker/cmd/comment-checker@latest
+go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-checker@latest
 ```
 
-## Usage
+### manual
 
-Pipe JSON input from Claude Code hooks:
+grab binary from [releases](https://github.com/code-yeongyu/go-claude-code-comment-checker/releases).
 
-```bash
-echo '{"tool_name":"Write","tool_input":{"file_path":"test.py","content":"print(1)"}}' | ./comment-checker
+## setup
+
+add to `~/.claude/hooks/post_tool_use.py`:
+
+```python
+HookMatcher(
+    matcher="Write|Edit|MultiEdit",
+    hooks=[
+        HookCommand(
+            type="command",
+            command="comment-checker",
+            asyncable=True,
+        ),
+    ],
+),
 ```
 
-### Input Format
+done. now claude will think twice before leaving `// TODO: fix later` in your code.
 
-```json
-{
-  "tool_name": "Write",
-  "tool_input": {
-    "file_path": "path/to/file.py",
-    "content": "# comment\nprint(1)"
-  }
-}
-```
-
-Supported `tool_name` values:
-- `Write`: Uses `content` field
-- `Edit`: Uses `new_string` field
-- `MultiEdit`: Combines all `edits[].new_string` fields
-
-### Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Pass (no comments) or Skip (non-code file, invalid input) |
-| 2 | Block (problematic comments found) |
-
-## Supported Languages
-
-30+ languages via go-tree-sitter:
-
-- **Popular**: Python, Go, TypeScript, JavaScript, Java, Rust, C, C++, C#
-- **Scripting**: Ruby, PHP, Bash, Lua, Perl
-- **Functional**: Elixir, Scala, OCaml, Elm
-- **Config**: YAML, TOML, HCL, Dockerfile
-- **Other**: Swift, Kotlin, Groovy, SQL, HTML, CSS, Markdown
-
-## Filters
-
-Comments are automatically filtered if they match:
-
-| Filter | Example |
-|--------|---------|
-| BDD | `# given`, `# when`, `# then` |
-| Docstring | `"""docstring"""`, `/** JSDoc */` |
-| Directive | `# noqa`, `// @ts-ignore`, `// eslint-disable` |
-| Shebang | `#!/usr/bin/env python` |
-
-## Library Usage
+## what it catches
 
 ```go
-import (
-    "github.com/yeongyu/comment-checker/pkg/core"
-    "github.com/yeongyu/comment-checker/pkg/filters"
-    "github.com/yeongyu/comment-checker/pkg/output"
-)
+// bad: unnecessary comment
+x := 1 + 1  // adds one to one
 
-// Detect comments
-detector := core.NewCommentDetector()
-comments := detector.Detect(content, "file.py", false)
+// bad: todo that will never be done
+// TODO: refactor this later
 
-// Apply filters
-bddFilter := filters.NewBDDFilter()
-docstringFilter := filters.NewDocstringFilter()
-directiveFilter := filters.NewDirectiveFilter()
-shebangFilter := filters.NewShebangFilter()
-
-var filtered []models.CommentInfo
-for _, c := range comments {
-    if bddFilter.ShouldSkip(c) || docstringFilter.ShouldSkip(c) ||
-       directiveFilter.ShouldSkip(c) || shebangFilter.ShouldSkip(c) {
-        continue
-    }
-    filtered = append(filtered, c)
-}
-
-// Format output
-message := output.FormatHookMessage(filtered)
+// bad: commented out code
+// fmt.Println("debug")
 ```
 
-## Development
+## what it allows
 
-```bash
-# Build
-go build ./...
-
-# Test
-go test ./... -v
-
-# Lint
-go vet ./...
+```python
+# given - BDD comments are fine
+def test_something():
+    # when
+    result = do_thing()
+    # then
+    assert result == expected
 ```
 
-## License
+```python
+# noqa: E501 - linter directives are fine
+```
 
-MIT
+```python
+#!/usr/bin/env python - shebangs are fine
+```
+
+```python
+"""Public API docstrings are fine."""
+def public_function():
+    pass
+```
+
+## 30+ languages
+
+python, go, typescript, javascript, rust, c, c++, java, ruby, php, swift, kotlin, scala, elixir, and more.
+
+if tree-sitter supports it, we support it.
+
+## how it works
+
+1. hook receives JSON from Claude Code
+2. extracts content from `Write`/`Edit`/`MultiEdit` tool input
+3. detects language from file extension
+4. parses AST with tree-sitter
+5. finds comment nodes
+6. filters out allowed patterns (BDD, directives, shebangs, docstrings)
+7. if anything remains → exit 2 with warning message
+
+## exit codes
+
+| code | meaning |
+|------|---------|
+| 0 | pass - no comments found or skipped |
+| 2 | warning - problematic comments detected |
+
+## philosophy
+
+> "Code is like humor. When you have to explain it, it's bad." - Cory House
+
+write self-documenting code. use meaningful names. extract functions. stop explaining what the code does and make the code explain itself.
+
+## license
+
+MIT. do whatever.

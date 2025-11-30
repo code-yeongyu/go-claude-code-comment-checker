@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yeongyu/comment-checker/pkg/models"
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
 func TestShebangFilter_ShouldSkip_ShebangLine_ReturnsTrue(t *testing.T) {
