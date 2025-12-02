@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/core"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/filters"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/output"
+	"github.com/spf13/cobra"
 )
 
 // ToolInput represents the tool_input field from JSON input.
@@ -89,14 +89,6 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Get content to check based on tool type
-	content := getContentToCheck(hookInput)
-	if content == "" {
-		fmt.Fprintln(os.Stderr, "[check-comments] Skipping: No content to check")
-		os.Exit(exitPass)
-		return
-	}
-
 	// Check if file is a code file (supported extension)
 	ext := strings.TrimPrefix(filepath.Ext(filePath), ".")
 	if ext == "" {
@@ -111,9 +103,53 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Detect comments
+	// Detect comments based on tool type
 	detector := core.NewCommentDetector()
-	comments := detector.Detect(content, filePath, true)
+	var comments []models.CommentInfo
+
+	switch hookInput.ToolName {
+	case "Edit":
+		// For Edit: only detect NEW comments (in new_string but not in old_string)
+		if hookInput.ToolInput.NewString == "" {
+			fmt.Fprintln(os.Stderr, "[check-comments] Skipping: No content to check")
+			os.Exit(exitPass)
+			return
+		}
+		comments = detectNewCommentsForEdit(
+			detector,
+			hookInput.ToolInput.OldString,
+			hookInput.ToolInput.NewString,
+			filePath,
+		)
+	case "MultiEdit":
+		// For MultiEdit: aggregate new comments from all edits
+		if len(hookInput.ToolInput.Edits) == 0 {
+			fmt.Fprintln(os.Stderr, "[check-comments] Skipping: No content to check")
+			os.Exit(exitPass)
+			return
+		}
+		for _, edit := range hookInput.ToolInput.Edits {
+			if edit.NewString == "" {
+				continue
+			}
+			editComments := detectNewCommentsForEdit(
+				detector,
+				edit.OldString,
+				edit.NewString,
+				filePath,
+			)
+			comments = append(comments, editComments...)
+		}
+	default:
+		// For Write and others: check entire content
+		content := getContentToCheck(hookInput)
+		if content == "" {
+			fmt.Fprintln(os.Stderr, "[check-comments] Skipping: No content to check")
+			os.Exit(exitPass)
+			return
+		}
+		comments = detector.Detect(content, filePath, true)
+	}
 
 	// No comments found
 	if len(comments) == 0 {
@@ -188,4 +224,38 @@ func applyFilters(comments []models.CommentInfo) []models.CommentInfo {
 	}
 
 	return filtered
+}
+
+// buildCommentTextSet creates a set of normalized comment texts for comparison.
+func buildCommentTextSet(comments []models.CommentInfo) map[string]struct{} {
+	set := make(map[string]struct{}, len(comments))
+	for _, c := range comments {
+		set[c.NormalizedText()] = struct{}{}
+	}
+	return set
+}
+
+// filterNewComments returns comments that exist in newComments but not in oldComments.
+func filterNewComments(oldComments, newComments []models.CommentInfo) []models.CommentInfo {
+	if len(oldComments) == 0 {
+		return newComments
+	}
+
+	oldSet := buildCommentTextSet(oldComments)
+
+	var newOnly []models.CommentInfo
+	for _, c := range newComments {
+		if _, exists := oldSet[c.NormalizedText()]; !exists {
+			newOnly = append(newOnly, c)
+		}
+	}
+	return newOnly
+}
+
+// detectNewCommentsForEdit detects comments that are newly added in Edit operation.
+func detectNewCommentsForEdit(detector *core.CommentDetector, oldString, newString, filePath string) []models.CommentInfo {
+	oldComments := detector.Detect(oldString, filePath, true)
+	newComments := detector.Detect(newString, filePath, true)
+
+	return filterNewComments(oldComments, newComments)
 }
