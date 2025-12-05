@@ -14,7 +14,6 @@ const PLATFORM_MAP = {
   "linux-arm64": { os: "linux", arch: "arm64", ext: "tar.gz" },
   "linux-x64": { os: "linux", arch: "amd64", ext: "tar.gz" },
   "win32-x64": { os: "windows", arch: "amd64", ext: "zip" },
-  "win32-arm64": { os: "windows", arch: "arm64", ext: "zip" },
 };
 
 function getPlatformKey() {
