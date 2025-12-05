@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-claude/comment-checker-darwin-x64",
+  "name": "@code-yeongyu/comment-checker-darwin-x64",
   "version": "0.0.0",
   "description": "comment-checker binary for darwin-x64",
   "os": ["darwin"],

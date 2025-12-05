@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-claude/comment-checker-linux-arm64",
+  "name": "@code-yeongyu/comment-checker-linux-arm64",
   "version": "0.0.0",
   "description": "comment-checker binary for linux-arm64",
   "os": ["linux"],

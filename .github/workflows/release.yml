@@ -206,6 +206,12 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.version }}
           
+          # Create bin directories
+          mkdir -p npm/comment-checker-darwin-arm64/bin
+          mkdir -p npm/comment-checker-darwin-x64/bin
+          mkdir -p npm/comment-checker-linux-arm64/bin
+          mkdir -p npm/comment-checker-linux-x64/bin
+          
           # Extract binaries and copy to npm packages
           cd artifacts
           
@@ -238,7 +244,7 @@ jobs:
           done
           
           # Update optionalDependencies versions in main package
-          jq --arg v "$VERSION" '.optionalDependencies["@anthropic-claude/comment-checker-darwin-arm64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-darwin-x64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-linux-arm64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-linux-x64"] = $v' npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
+          jq --arg v "$VERSION" '.optionalDependencies["@code-yeongyu/comment-checker-darwin-arm64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-darwin-x64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-linux-arm64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-linux-x64"] = $v' npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
           mv npm/comment-checker/package.json.tmp npm/comment-checker/package.json
           
           # Make binaries executable
