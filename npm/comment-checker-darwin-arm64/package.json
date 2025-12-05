@@ -1,9 +1,13 @@
 {
   "name": "@code-yeongyu/comment-checker-darwin-arm64",
-  "version": "0.0.0",
+  "version": "0.3.2",
   "description": "comment-checker binary for darwin-arm64",
-  "os": ["darwin"],
-  "cpu": ["arm64"],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
   "main": "index.js",
   "files": [
     "bin",
