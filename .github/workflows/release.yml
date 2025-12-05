@@ -26,6 +26,12 @@ jobs:
           - os: ubuntu-latest
             goos: linux
             goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -42,7 +48,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      - name: Build
+      - name: Build (Unix)
+        if: matrix.goos != 'windows'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -57,11 +64,29 @@ jobs:
           fi
           tar -czvf comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz comment-checker LICENSE README.md
 
-      - name: Upload artifact
+      - name: Build (Windows)
+        if: matrix.goos == 'windows'
+        env:
+          GOOS: windows
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+        run: |
+          go build -ldflags="-s -w" -o comment-checker.exe ./cmd/comment-checker
+          Compress-Archive -Path comment-checker.exe, LICENSE, README.md -DestinationPath comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+      - name: Upload artifact (Unix)
+        if: matrix.goos != 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: comment-checker_${{ matrix.goos }}_${{ matrix.goarch }}
           path: comment-checker_*.tar.gz
+
+      - name: Upload artifact (Windows)
+        if: matrix.goos == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: comment-checker_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: comment-checker_*.zip
 
   release:
     needs: build
@@ -78,16 +103,24 @@ jobs:
       - name: Create checksums
         run: |
           cd artifacts
-          sha256sum *.tar.gz > checksums.txt
+          sha256sum *.tar.gz *.zip > checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             artifacts/*.tar.gz
+            artifacts/*.zip
             artifacts/checksums.txt
           body: |
             ## Installation
+
+            ### npm (Recommended)
+            ```bash
+            npm install -g @code-yeongyu/comment-checker
+            # or
+            bun add -g @code-yeongyu/comment-checker
+            ```
 
             ### Homebrew (macOS)
             ```bash
@@ -102,6 +135,11 @@ jobs:
 
             ### Manual Download
             Download the appropriate binary for your platform from the assets below.
+            
+            **Supported Platforms:**
+            - macOS (arm64, x64)
+            - Linux (arm64, x64)
+            - Windows (arm64, x64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -180,7 +218,7 @@ jobs:
           git push
 
   npm-publish:
-    needs: build
+    needs: release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -189,17 +227,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
-
-      - name: Configure npm registry
-        run: npm config set registry https://registry.npmjs.org
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+          registry-url: "https://registry.npmjs.org"
 
       - name: Extract version
         id: version
@@ -208,68 +236,16 @@ jobs:
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Prepare npm packages
+      - name: Update package version
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          
-          # Create bin directories
-          mkdir -p npm/comment-checker-darwin-arm64/bin
-          mkdir -p npm/comment-checker-darwin-x64/bin
-          mkdir -p npm/comment-checker-linux-arm64/bin
-          mkdir -p npm/comment-checker-linux-x64/bin
-          
-          # Extract binaries and copy to npm packages
-          cd artifacts
-          
-          # darwin-arm64
-          tar -xzf comment-checker_darwin_arm64/comment-checker_${{ github.ref_name }}_darwin_arm64.tar.gz
-          cp comment-checker ../npm/comment-checker-darwin-arm64/bin/
-          rm comment-checker
-          
-          # darwin-x64
-          tar -xzf comment-checker_darwin_amd64/comment-checker_${{ github.ref_name }}_darwin_amd64.tar.gz
-          cp comment-checker ../npm/comment-checker-darwin-x64/bin/
-          rm comment-checker
-          
-          # linux-arm64
-          tar -xzf comment-checker_linux_arm64/comment-checker_${{ github.ref_name }}_linux_arm64.tar.gz
-          cp comment-checker ../npm/comment-checker-linux-arm64/bin/
-          rm comment-checker
-          
-          # linux-x64
-          tar -xzf comment-checker_linux_amd64/comment-checker_${{ github.ref_name }}_linux_amd64.tar.gz
-          cp comment-checker ../npm/comment-checker-linux-x64/bin/
-          rm comment-checker
-          
-          cd ..
-          
-          # Update versions in all package.json files
-          for pkg in npm/comment-checker npm/comment-checker-darwin-arm64 npm/comment-checker-darwin-x64 npm/comment-checker-linux-arm64 npm/comment-checker-linux-x64; do
-            jq --arg v "$VERSION" '.version = $v' $pkg/package.json > $pkg/package.json.tmp
-            mv $pkg/package.json.tmp $pkg/package.json
-          done
-          
-          # Update optionalDependencies versions in main package
-          jq --arg v "$VERSION" '.optionalDependencies["@code-yeongyu/comment-checker-darwin-arm64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-darwin-x64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-linux-arm64"] = $v | .optionalDependencies["@code-yeongyu/comment-checker-linux-x64"] = $v' npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
-          mv npm/comment-checker/package.json.tmp npm/comment-checker/package.json
-          
-          # Make binaries executable
-          chmod +x npm/comment-checker-darwin-arm64/bin/comment-checker
-          chmod +x npm/comment-checker-darwin-x64/bin/comment-checker
-          chmod +x npm/comment-checker-linux-arm64/bin/comment-checker
-          chmod +x npm/comment-checker-linux-x64/bin/comment-checker
+          cd npm/comment-checker
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
 
-      - name: Publish platform packages
+      - name: Publish to npm
         env:
-          NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd npm/comment-checker-darwin-arm64 && npm publish --access public || true
-          cd ../comment-checker-darwin-x64 && npm publish --access public || true
-          cd ../comment-checker-linux-arm64 && npm publish --access public || true
-          cd ../comment-checker-linux-x64 && npm publish --access public || true
-
-      - name: Publish main package
-        env:
-          NPM_CONFIG_PROVENANCE: true
-        run: |
-          cd npm/comment-checker && npm publish --access public
+          cd npm/comment-checker
+          npm publish --access public
