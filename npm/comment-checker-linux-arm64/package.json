@@ -1,0 +1,18 @@
+{
+  "name": "@anthropic-claude/comment-checker-linux-arm64",
+  "version": "0.0.0",
+  "description": "comment-checker binary for linux-arm64",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "main": "index.js",
+  "files": [
+    "bin",
+    "index.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code-yeongyu/go-claude-code-comment-checker.git"
+  },
+  "author": "YeonGyu Kim <yeongyu.gim@gmail.com>",
+  "license": "MIT"
+}

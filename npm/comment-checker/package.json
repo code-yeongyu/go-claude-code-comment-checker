@@ -1,0 +1,43 @@
+{
+  "name": "@anthropic-claude/comment-checker",
+  "version": "0.0.0",
+  "description": "Multi-language comment detection hook for Claude Code/OpenCode. Native binary powered by tree-sitter.",
+  "main": "index.js",
+  "bin": {
+    "comment-checker": "bin/comment-checker"
+  },
+  "files": [
+    "index.js",
+    "bin"
+  ],
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  },
+  "optionalDependencies": {
+    "@anthropic-claude/comment-checker-darwin-arm64": "0.0.0",
+    "@anthropic-claude/comment-checker-darwin-x64": "0.0.0",
+    "@anthropic-claude/comment-checker-linux-arm64": "0.0.0",
+    "@anthropic-claude/comment-checker-linux-x64": "0.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/code-yeongyu/go-claude-code-comment-checker.git"
+  },
+  "keywords": [
+    "comment-checker",
+    "tree-sitter",
+    "claude-code",
+    "opencode",
+    "hook",
+    "linter"
+  ],
+  "author": "YeonGyu Kim <yeongyu.gim@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/code-yeongyu/go-claude-code-comment-checker/issues"
+  },
+  "homepage": "https://github.com/code-yeongyu/go-claude-code-comment-checker#readme",
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -177,3 +177,87 @@ jobs:
           git add Formula/comment-checker.rb
           git commit -m "Update comment-checker to v$VERSION"
           git push
+
+  npm-publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Prepare npm packages
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          
+          # Extract binaries and copy to npm packages
+          cd artifacts
+          
+          # darwin-arm64
+          tar -xzf comment-checker_darwin_arm64/comment-checker_${{ github.ref_name }}_darwin_arm64.tar.gz
+          cp comment-checker ../npm/comment-checker-darwin-arm64/bin/
+          rm comment-checker
+          
+          # darwin-x64
+          tar -xzf comment-checker_darwin_amd64/comment-checker_${{ github.ref_name }}_darwin_amd64.tar.gz
+          cp comment-checker ../npm/comment-checker-darwin-x64/bin/
+          rm comment-checker
+          
+          # linux-arm64
+          tar -xzf comment-checker_linux_arm64/comment-checker_${{ github.ref_name }}_linux_arm64.tar.gz
+          cp comment-checker ../npm/comment-checker-linux-arm64/bin/
+          rm comment-checker
+          
+          # linux-x64
+          tar -xzf comment-checker_linux_amd64/comment-checker_${{ github.ref_name }}_linux_amd64.tar.gz
+          cp comment-checker ../npm/comment-checker-linux-x64/bin/
+          rm comment-checker
+          
+          cd ..
+          
+          # Update versions in all package.json files
+          for pkg in npm/comment-checker npm/comment-checker-darwin-arm64 npm/comment-checker-darwin-x64 npm/comment-checker-linux-arm64 npm/comment-checker-linux-x64; do
+            jq --arg v "$VERSION" '.version = $v' $pkg/package.json > $pkg/package.json.tmp
+            mv $pkg/package.json.tmp $pkg/package.json
+          done
+          
+          # Update optionalDependencies versions in main package
+          jq --arg v "$VERSION" '.optionalDependencies["@anthropic-claude/comment-checker-darwin-arm64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-darwin-x64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-linux-arm64"] = $v | .optionalDependencies["@anthropic-claude/comment-checker-linux-x64"] = $v' npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
+          mv npm/comment-checker/package.json.tmp npm/comment-checker/package.json
+          
+          # Make binaries executable
+          chmod +x npm/comment-checker-darwin-arm64/bin/comment-checker
+          chmod +x npm/comment-checker-darwin-x64/bin/comment-checker
+          chmod +x npm/comment-checker-linux-arm64/bin/comment-checker
+          chmod +x npm/comment-checker-linux-x64/bin/comment-checker
+
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm/comment-checker-darwin-arm64 && npm publish --access public || true
+          cd ../comment-checker-darwin-x64 && npm publish --access public || true
+          cd ../comment-checker-linux-arm64 && npm publish --access public || true
+          cd ../comment-checker-linux-x64 && npm publish --access public || true
+
+      - name: Publish main package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm/comment-checker && npm publish --access public
