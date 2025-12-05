@@ -262,7 +262,7 @@ jobs:
 
       - name: Publish platform packages
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           cd npm/comment-checker-darwin-arm64 && npm publish --access public || true
           cd ../comment-checker-darwin-x64 && npm publish --access public || true
@@ -271,6 +271,6 @@ jobs:
 
       - name: Publish main package
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           cd npm/comment-checker && npm publish --access public
