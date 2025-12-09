@@ -217,6 +217,9 @@ jobs:
   npm-publish:
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -245,4 +248,4 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm/comment-checker
-          npm publish --access public
+          npm publish --access public --provenance
