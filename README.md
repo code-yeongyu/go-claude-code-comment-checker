@@ -17,7 +17,7 @@ comments are code smell. if your code needs comments to be understood, your code
 
 this hook watches every `Write`, `Edit`, `MultiEdit` and screams when it detects comments.
 
-exceptions exist. BDD comments (`# given`, `# when`, `# then`), docstrings for public APIs, linter directives (`# noqa`, `// @ts-ignore`) - these are fine. everything else? delete it.
+exceptions exist. BDD comments (`# given`, `# when`, `# then`), linter directives (`# noqa`, `// @ts-ignore`), shebangs - these are fine. everything else? delete it. yes, even docstrings.
 
 ## install
 
@@ -94,12 +94,6 @@ def test_something():
 #!/usr/bin/env python - shebangs are fine
 ```
 
-```python
-"""Public API docstrings are fine."""
-def public_function():
-    pass
-```
-
 ## 30+ languages
 
 python, go, typescript, javascript, rust, c, c++, java, ruby, php, swift, kotlin, scala, elixir, and more.
@@ -113,7 +107,7 @@ if tree-sitter supports it, we support it.
 3. detects language from file extension
 4. parses AST with tree-sitter
 5. finds comment nodes
-6. filters out allowed patterns (BDD, directives, shebangs, docstrings)
+6. filters out allowed patterns (BDD, directives, shebangs)
 7. if anything remains → exit 2 with warning message
 
 ## exit codes

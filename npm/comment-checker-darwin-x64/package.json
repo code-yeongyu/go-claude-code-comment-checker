@@ -1,6 +1,6 @@
 {
   "name": "@code-yeongyu/comment-checker-darwin-x64",
-  "version": "0.3.2",
+  "version": "0.5.0",
   "description": "comment-checker binary for darwin-x64",
   "os": [
     "darwin"

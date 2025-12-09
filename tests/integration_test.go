@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/core"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/filters"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/output"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ============================================================================
@@ -68,7 +68,7 @@ print("hello")`
 	assert.Contains(t, message, "This is a regular comment")
 }
 
-func Test_FullPipeline_WithDocstring_FiltersOut(t *testing.T) {
+func Test_FullPipeline_WithDocstring_DetectsAsCodeSmell(t *testing.T) {
 	// given
 	detector := core.NewCommentDetector()
 	code := `"""This is a docstring"""
@@ -81,7 +81,7 @@ def hello():
 
 	// then
 	assert.NotEmpty(t, comments, "Should detect docstring")
-	assert.Empty(t, filtered, "Docstring should be filtered out")
+	assert.NotEmpty(t, filtered, "Docstring should NOT be filtered out (now a code smell)")
 }
 
 func Test_FullPipeline_WithDirective_FiltersOut(t *testing.T) {
@@ -474,16 +474,12 @@ int main() { return 0; }`
 
 func applyFilterChain(comments []models.CommentInfo) []models.CommentInfo {
 	bddFilter := filters.NewBDDFilter()
-	docstringFilter := filters.NewDocstringFilter()
 	directiveFilter := filters.NewDirectiveFilter()
 	shebangFilter := filters.NewShebangFilter()
 
 	var filtered []models.CommentInfo
 	for _, c := range comments {
 		if bddFilter.ShouldSkip(c) {
-			continue
-		}
-		if docstringFilter.ShouldSkip(c) {
 			continue
 		}
 		if directiveFilter.ShouldSkip(c) {

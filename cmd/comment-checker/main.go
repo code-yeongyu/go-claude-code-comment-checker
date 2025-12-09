@@ -158,7 +158,7 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Apply filter chain: BDD -> Docstring -> Directive -> Shebang
+	// Apply filter chain: BDD -> Directive -> Shebang
 	filtered := applyFilters(comments)
 
 	// No problematic comments after filtering
@@ -202,16 +202,12 @@ func getContentToCheck(input HookInput) string {
 // applyFilters applies all filters in order and returns remaining comments.
 func applyFilters(comments []models.CommentInfo) []models.CommentInfo {
 	bddFilter := filters.NewBDDFilter()
-	docstringFilter := filters.NewDocstringFilter()
 	directiveFilter := filters.NewDirectiveFilter()
 	shebangFilter := filters.NewShebangFilter()
 
 	var filtered []models.CommentInfo
 	for _, c := range comments {
 		if bddFilter.ShouldSkip(c) {
-			continue
-		}
-		if docstringFilter.ShouldSkip(c) {
 			continue
 		}
 		if directiveFilter.ShouldSkip(c) {

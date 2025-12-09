@@ -14,8 +14,8 @@ Go와 tree-sitter 기반으로 30개 이상의 언어를 지원합니다.
 좋은 코드는 그 자체로 의도를 설명합니다.
 
 물론 모든 주석이 나쁜 건 아닙니다.
-BDD 테스트 주석, 린터 지시문, docstring 같은 건 허용합니다.
-하지만 "i를 1 증가시킵니다" 같은 주석은 삭제해야 합니다.
+BDD 테스트 주석, 린터 지시문, shebang은 허용합니다.
+하지만 "i를 1 증가시킵니다" 같은 주석이나 docstring은 삭제해야 합니다.
 
 ## 설치
 
@@ -103,16 +103,6 @@ def test_user_login():
 
 ```python
 #!/usr/bin/env python3
-```
-
-### Docstring
-
-API 문서화를 위한 docstring은 허용합니다.
-
-```python
-def calculate_total(items: list[Item]) -> int:
-    """주문 항목의 총액을 계산합니다."""
-    return sum(item.price for item in items)
 ```
 
 ---
