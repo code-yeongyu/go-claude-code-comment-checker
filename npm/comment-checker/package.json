@@ -1,6 +1,6 @@
 {
   "name": "@code-yeongyu/comment-checker",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Multi-language comment detection hook for Claude Code/OpenCode. Native binary powered by tree-sitter.",
   "main": "index.js",
   "bin": {
