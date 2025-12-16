@@ -1,8 +1,10 @@
 package output
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/filters"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
@@ -25,10 +27,52 @@ func FormatHookMessage(comments []models.CommentInfo) string {
 		byFile[comment.FilePath] = append(byFile[comment.FilePath], comment)
 	}
 
+	// Detect agent memo comments
+	agentMemoFilter := filters.NewAgentMemoFilter()
+	var agentMemoComments []models.CommentInfo
+	for _, comment := range comments {
+		if agentMemoFilter.IsAgentMemo(comment) {
+			agentMemoComments = append(agentMemoComments, comment)
+		}
+	}
+	hasAgentMemo := len(agentMemoComments) > 0
+
 	var sb strings.Builder
 
 	// Header
-	sb.WriteString("COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED\n\n")
+	if hasAgentMemo {
+		sb.WriteString("🚨 AGENT MEMO COMMENT DETECTED - CODE SMELL ALERT 🚨\n\n")
+	} else {
+		sb.WriteString("COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED\n\n")
+	}
+
+	// Agent memo warning (if detected)
+	if hasAgentMemo {
+		sb.WriteString("⚠️  AGENT MEMO COMMENTS DETECTED - THIS IS A CODE SMELL  ⚠️\n\n")
+		sb.WriteString("You left \"memo-style\" comments that describe WHAT you changed or HOW you implemented something.\n")
+		sb.WriteString("These are typically signs of an AI agent leaving notes for itself or the user.\n\n")
+		sb.WriteString("Examples of agent memo patterns detected:\n")
+		sb.WriteString("  - \"Changed from X to Y\", \"Modified to...\", \"Updated from...\"\n")
+		sb.WriteString("  - \"Added new...\", \"Removed...\", \"Refactored...\"\n")
+		sb.WriteString("  - \"This implements...\", \"Here we...\", \"Now this...\"\n")
+		sb.WriteString("  - \"Note:\", \"Implementation of...\"\n")
+		sb.WriteString("  - Korean: \"여기서 변경됨\", \"구현함\", \"추가함\", \"수정됨\"\n\n")
+		sb.WriteString("WHY THIS IS BAD:\n")
+		sb.WriteString("  1. Code should be self-documenting - if you need to explain what changed, the code isn't clear enough\n")
+		sb.WriteString("  2. These comments become outdated instantly and mislead future readers\n")
+		sb.WriteString("  3. Git history already tracks what changed - comments duplicate this poorly\n")
+		sb.WriteString("  4. It's a sign of rushing without proper refactoring\n\n")
+		sb.WriteString("ACTION REQUIRED:\n")
+		sb.WriteString("  -> REMOVE these memo comments immediately\n")
+		sb.WriteString("  -> If the code needs explanation, refactor it to be clearer instead\n")
+		sb.WriteString("  -> Use meaningful variable/function names that explain intent\n")
+		sb.WriteString("  -> Let git commit messages document the \"what\" and \"why\"\n\n")
+		sb.WriteString("Detected agent memo comments:\n")
+		for _, memo := range agentMemoComments {
+			sb.WriteString(fmt.Sprintf("  - Line %d: %s\n", memo.LineNumber, strings.TrimSpace(memo.Text)))
+		}
+		sb.WriteString("\n---\n\n")
+	}
 
 	// Guidelines
 	sb.WriteString("Your recent changes contain comments or docstrings, which triggered this hook.\n")

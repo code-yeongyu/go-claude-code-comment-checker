@@ -493,3 +493,67 @@ func applyFilterChain(comments []models.CommentInfo) []models.CommentInfo {
 
 	return filtered
 }
+
+func Test_FullPipeline_WithAgentMemo_DetectsAsCodeSmell(t *testing.T) {
+	// given
+	detector := core.NewCommentDetector()
+	agentMemoFilter := filters.NewAgentMemoFilter()
+	code := `# Changed from old_value to new_value
+print("hello")`
+
+	// when
+	comments := detector.Detect(code, "test.py", false)
+	filtered := applyFilterChain(comments)
+
+	// then
+	assert.Len(t, filtered, 1)
+	assert.True(t, agentMemoFilter.IsAgentMemo(filtered[0]))
+}
+
+func Test_FullPipeline_WithAgentMemo_FormatterIncludesWarning(t *testing.T) {
+	// given
+	detector := core.NewCommentDetector()
+	code := `# Modified to use new implementation
+print("hello")`
+
+	// when
+	comments := detector.Detect(code, "test.py", false)
+	filtered := applyFilterChain(comments)
+	message := output.FormatHookMessage(filtered)
+
+	// then
+	assert.Contains(t, message, "AGENT MEMO")
+	assert.Contains(t, message, "CODE SMELL")
+}
+
+func Test_FullPipeline_WithAgentMemo_Korean_DetectsAsCodeSmell(t *testing.T) {
+	// given
+	detector := core.NewCommentDetector()
+	agentMemoFilter := filters.NewAgentMemoFilter()
+	code := `# 여기서 값이 변경됨
+print("hello")`
+
+	// when
+	comments := detector.Detect(code, "test.py", false)
+	filtered := applyFilterChain(comments)
+
+	// then
+	assert.Len(t, filtered, 1)
+	assert.True(t, agentMemoFilter.IsAgentMemo(filtered[0]))
+}
+
+func Test_FullPipeline_RegularComment_NotAgentMemo(t *testing.T) {
+	// given
+	detector := core.NewCommentDetector()
+	agentMemoFilter := filters.NewAgentMemoFilter()
+	code := `# Calculate the sum of values
+print("hello")`
+
+	// when
+	comments := detector.Detect(code, "test.py", false)
+	filtered := applyFilterChain(comments)
+
+	// then
+	assert.Len(t, filtered, 1)
+	assert.False(t, agentMemoFilter.IsAgentMemo(filtered[0]))
+}
