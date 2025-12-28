@@ -106,6 +106,8 @@ func FormatHookMessage(comments []models.CommentInfo) string {
 	sb.WriteString("MANDATORY REQUIREMENT: You must acknowledge this hook message and take one of the above actions.\n")
 	sb.WriteString("Review in the above priority order and take the corresponding action EVERY TIME this appears.\n\n")
 
+	sb.WriteString("REMINDER: These rules apply to ALL your future code, not just this specific edit. Always be deliberate and cautious when writing comments - only add them when absolutely necessary.\n\n")
+
 	sb.WriteString("Detected comments/docstrings:\n")
 
 	// XML blocks for each file (preserve order)
