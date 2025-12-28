@@ -156,6 +156,28 @@ tree-sitter 덕분에 대부분의 주요 언어를 지원합니다.
 
 ---
 
+## 커스텀 프롬프트
+
+기본 경고 메시지를 `--prompt` 플래그로 대체할 수 있습니다:
+
+```bash
+comment-checker --prompt "커스텀 경고! {{comments}}"
+```
+
+`{{comments}}` 플레이스홀더를 사용하면 감지된 주석 XML이 삽입됩니다. 생략하면 커스텀 메시지만 출력됩니다.
+
+### oh-my-opencode와 함께 사용
+
+```json
+{
+  "comment_checker": {
+    "custom_prompt": "감지됨:\n{{comments}}\n수정하세요."
+  }
+}
+```
+
+---
+
 ## 라이선스
 
 MIT

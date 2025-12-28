@@ -59,7 +59,7 @@ print("hello")`
 	// when
 	comments := detector.Detect(code, "test.py", false)
 	filtered := applyFilterChain(comments)
-	message := output.FormatHookMessage(filtered)
+	message := output.FormatHookMessage(filtered, "")
 
 	// then
 	assert.Len(t, filtered, 1)
@@ -519,7 +519,7 @@ print("hello")`
 	// when
 	comments := detector.Detect(code, "test.py", false)
 	filtered := applyFilterChain(comments)
-	message := output.FormatHookMessage(filtered)
+	message := output.FormatHookMessage(filtered, "")
 
 	// then
 	assert.Contains(t, message, "AGENT MEMO")

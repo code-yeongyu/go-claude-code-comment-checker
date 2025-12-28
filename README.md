@@ -117,6 +117,26 @@ if tree-sitter supports it, we support it.
 | 0 | pass - no comments found or skipped |
 | 2 | warning - problematic comments detected |
 
+## custom prompt
+
+you can replace the default warning message with your own using `--prompt`:
+
+```bash
+comment-checker --prompt "Custom warning! {{comments}}"
+```
+
+use `{{comments}}` placeholder to insert the detected comments XML. if omitted, only your custom message is shown.
+
+### with oh-my-opencode
+
+```json
+{
+  "comment_checker": {
+    "custom_prompt": "DETECTED:\n{{comments}}\nFix it."
+  }
+}
+```
+
 ## philosophy
 
 > "Code is like humor. When you have to explain it, it's bad." - Cory House

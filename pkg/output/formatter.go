@@ -11,8 +11,10 @@ import (
 // FormatHookMessage formats comment detection results for Claude Code hooks.
 // Groups comments by file path and builds complete error message with
 // instructions and XML blocks for each file.
+// If customPrompt is provided, it replaces the default message template.
+// Use {{comments}} placeholder in customPrompt to insert detected comments XML.
 // Returns formatted hook error message, or empty string if no comments provided.
-func FormatHookMessage(comments []models.CommentInfo) string {
+func FormatHookMessage(comments []models.CommentInfo, customPrompt string) string {
 	if len(comments) == 0 {
 		return ""
 	}
@@ -27,6 +29,20 @@ func FormatHookMessage(comments []models.CommentInfo) string {
 		byFile[comment.FilePath] = append(byFile[comment.FilePath], comment)
 	}
 
+	// Build comments XML
+	var commentsXML strings.Builder
+	for _, filePath := range fileOrder {
+		fileComments := byFile[filePath]
+		commentsXML.WriteString(BuildCommentsXML(fileComments, filePath))
+		commentsXML.WriteString("\n")
+	}
+
+	// If custom prompt is provided, use it with {{comments}} replacement
+	if customPrompt != "" {
+		return strings.ReplaceAll(customPrompt, "{{comments}}", commentsXML.String())
+	}
+
+	// Default message template
 	// Detect agent memo comments
 	agentMemoFilter := filters.NewAgentMemoFilter()
 	var agentMemoComments []models.CommentInfo
@@ -109,13 +125,7 @@ func FormatHookMessage(comments []models.CommentInfo) string {
 	sb.WriteString("REMINDER: These rules apply to ALL your future code, not just this specific edit. Always be deliberate and cautious when writing comments - only add them when absolutely necessary.\n\n")
 
 	sb.WriteString("Detected comments/docstrings:\n")
-
-	// XML blocks for each file (preserve order)
-	for _, filePath := range fileOrder {
-		fileComments := byFile[filePath]
-		sb.WriteString(BuildCommentsXML(fileComments, filePath))
-		sb.WriteString("\n")
-	}
+	sb.WriteString(commentsXML.String())
 
 	return sb.String()
 }

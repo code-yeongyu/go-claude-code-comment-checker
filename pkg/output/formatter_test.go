@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_FormatHookMessage_SingleComment_ReturnsFormattedMessage(t *testing.T) {
@@ -20,7 +20,7 @@ func Test_FormatHookMessage_SingleComment_ReturnsFormattedMessage(t *testing.T) 
 	}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Contains(t, result, "COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED")
@@ -48,7 +48,7 @@ func Test_FormatHookMessage_MultipleCommentsSingleFile_ReturnsGroupedXML(t *test
 	}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Contains(t, result, `<comments file="src/main.py">`)
@@ -76,7 +76,7 @@ func Test_FormatHookMessage_CommentsMultipleFiles_ReturnsSeparateXMLBlocks(t *te
 	}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Contains(t, result, `<comments file="src/file1.py">`)
@@ -91,7 +91,7 @@ func Test_FormatHookMessage_EmptyList_ReturnsEmptyString(t *testing.T) {
 	comments := []models.CommentInfo{}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Equal(t, "", result)
@@ -110,7 +110,7 @@ func Test_FormatHookMessage_DocstringComment_ReturnsFormattedMessage(t *testing.
 	}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Contains(t, result, "COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED")
@@ -131,8 +131,50 @@ func Test_FormatHookMessage_XMLUsesTabsForIndentation(t *testing.T) {
 	}
 
 	// when
-	result := FormatHookMessage(comments)
+	result := FormatHookMessage(comments, "")
 
 	// then
 	assert.Contains(t, result, "\t<comment line-number=\"5\"># Comment</comment>")
+}
+
+func Test_FormatHookMessage_CustomPrompt_ReplacesDefaultMessage(t *testing.T) {
+	// given
+	comments := []models.CommentInfo{
+		{
+			Text:        "# Test comment",
+			LineNumber:  10,
+			FilePath:    "src/app.py",
+			CommentType: models.CommentTypeLine,
+		},
+	}
+	customPrompt := "CUSTOM WARNING: Comments detected!\n\n{{comments}}\n\nPlease fix."
+
+	// when
+	result := FormatHookMessage(comments, customPrompt)
+
+	// then
+	assert.Contains(t, result, "CUSTOM WARNING: Comments detected!")
+	assert.Contains(t, result, `<comments file="src/app.py">`)
+	assert.Contains(t, result, `<comment line-number="10"># Test comment</comment>`)
+	assert.Contains(t, result, "Please fix.")
+	assert.NotContains(t, result, "COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED")
+}
+
+func Test_FormatHookMessage_CustomPrompt_WithoutPlaceholder_ReturnsCustomOnly(t *testing.T) {
+	// given
+	comments := []models.CommentInfo{
+		{
+			Text:        "# Test",
+			LineNumber:  1,
+			FilePath:    "test.py",
+			CommentType: models.CommentTypeLine,
+		},
+	}
+	customPrompt := "Simple warning without placeholder."
+
+	// when
+	result := FormatHookMessage(comments, customPrompt)
+
+	// then
+	assert.Equal(t, "Simple warning without placeholder.", result)
 }

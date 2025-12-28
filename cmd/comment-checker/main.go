@@ -43,6 +43,8 @@ const (
 	exitBlock = 2
 )
 
+var customPrompt string
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "comment-checker",
@@ -50,6 +52,8 @@ func main() {
 		Long:  "A hook for Claude Code that detects and warns about comments and docstrings in source code.",
 		Run:   run,
 	}
+
+	rootCmd.Flags().StringVar(&customPrompt, "prompt", "", "Custom prompt to replace the default warning message. Use {{comments}} placeholder for detected comments XML.")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "[check-comments] Skipping: Command execution failed")
@@ -169,7 +173,7 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	// Problematic comments found - output warning and exit with code 2
-	message := output.FormatHookMessage(filtered)
+	message := output.FormatHookMessage(filtered, customPrompt)
 	fmt.Fprint(os.Stderr, message)
 	os.Exit(exitBlock)
 }
