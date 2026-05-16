@@ -75,6 +75,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
+          path-type: inherit
           update: true
           install: >-
             mingw-w64-x86_64-binutils
@@ -98,29 +99,22 @@ jobs:
 
       - name: Build (Windows)
         if: matrix.goos == 'windows'
-        shell: pwsh
+        shell: msys2 {0}
         env:
           GOOS: windows
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          CC: C:\msys64\mingw64\bin\gcc.exe
-          CXX: C:\msys64\mingw64\bin\g++.exe
+          CC: gcc
+          CXX: g++
           CGO_LDFLAGS: -static -static-libgcc -static-libstdc++
         run: |
           go build -ldflags="-s -w -extldflags '-static'" -o comment-checker.exe ./cmd/comment-checker
-          & "C:\msys64\mingw64\bin\objdump.exe" -p comment-checker.exe | Tee-Object -FilePath windows-dependencies.txt
-          $forbiddenDlls = @(
-            "libstdc++-6.dll",
-            "libgcc_s_seh-1.dll",
-            "libgcc_s_dw2-1.dll",
-            "libwinpthread-1.dll"
-          )
-          foreach ($dll in $forbiddenDlls) {
-            if (Select-String -Path windows-dependencies.txt -Pattern ([regex]::Escape($dll)) -Quiet) {
-              throw "Windows binary still references MinGW runtime DLL: $dll"
-            }
-          }
-          Compress-Archive -Path comment-checker.exe, LICENSE, README.md -DestinationPath comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          objdump -p comment-checker.exe | tee windows-dependencies.txt
+          if grep -E 'DLL Name: (libstdc\+\+-6|libgcc_s_seh-1|libgcc_s_dw2-1|libwinpthread-1)\.dll' windows-dependencies.txt; then
+            echo "Windows binary still references a MinGW runtime DLL" >&2
+            exit 1
+          fi
+          powershell -NoProfile -Command 'Compress-Archive -Path comment-checker.exe, LICENSE, README.md -DestinationPath comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip'
 
       - name: Upload artifact (Unix)
         if: matrix.goos != 'windows'
