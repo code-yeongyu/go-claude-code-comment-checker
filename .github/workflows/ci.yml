@@ -17,11 +17,19 @@ jobs:
         with:
           go-version: "1.24"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
       - name: Build
         run: go build -o comment-checker ./cmd/comment-checker
 
       - name: Test
         run: go test ./... -v -race -coverprofile=coverage.out
+
+      - name: Test npm package
+        run: node --test npm/comment-checker/*.test.js
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

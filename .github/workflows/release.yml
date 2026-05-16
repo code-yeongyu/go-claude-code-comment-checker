@@ -10,7 +10,32 @@ permissions:
   id-token: write
 
 jobs:
+  qa:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Build
+        run: go build -o comment-checker ./cmd/comment-checker
+
+      - name: Test
+        run: go test ./... -v -race -coverprofile=coverage.out
+
+      - name: Test npm package
+        run: node --test npm/comment-checker/*.test.js
+
   build:
+    needs: qa
     strategy:
       matrix:
         include:
@@ -37,13 +62,23 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
 
       - name: Install cross-compiler (Linux ARM64)
         if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install MinGW (Windows)
+        if: matrix.goos == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-gcc
 
       - name: Build (Unix)
         if: matrix.goos != 'windows'
@@ -63,12 +98,28 @@ jobs:
 
       - name: Build (Windows)
         if: matrix.goos == 'windows'
+        shell: pwsh
         env:
           GOOS: windows
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
+          CC: C:\msys64\mingw64\bin\gcc.exe
+          CXX: C:\msys64\mingw64\bin\g++.exe
+          CGO_LDFLAGS: -static -static-libgcc -static-libstdc++
         run: |
-          go build -ldflags="-s -w" -o comment-checker.exe ./cmd/comment-checker
+          go build -ldflags="-s -w -extldflags '-static'" -o comment-checker.exe ./cmd/comment-checker
+          & "C:\msys64\mingw64\bin\objdump.exe" -p comment-checker.exe | Tee-Object -FilePath windows-dependencies.txt
+          $forbiddenDlls = @(
+            "libstdc++-6.dll",
+            "libgcc_s_seh-1.dll",
+            "libgcc_s_dw2-1.dll",
+            "libwinpthread-1.dll"
+          )
+          foreach ($dll in $forbiddenDlls) {
+            if (Select-String -Path windows-dependencies.txt -Pattern ([regex]::Escape($dll)) -Quiet) {
+              throw "Windows binary still references MinGW runtime DLL: $dll"
+            }
+          }
           Compress-Archive -Path comment-checker.exe, LICENSE, README.md -DestinationPath comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
       - name: Upload artifact (Unix)
@@ -100,10 +151,10 @@ jobs:
       - name: Create checksums
         run: |
           cd artifacts
-          sha256sum *.tar.gz *.zip > checksums.txt
+          sha256sum -- ./*.tar.gz ./*.zip > checksums.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             artifacts/*.tar.gz
@@ -136,7 +187,7 @@ jobs:
             **Supported Platforms:**
             - macOS (arm64, x64)
             - Linux (arm64, x64)
-            - Windows (arm64, x64)
+            - Windows (x64)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -161,16 +212,16 @@ jobs:
       - name: Get checksums
         id: checksums
         run: |
-          ARM64_SHA=$(sha256sum artifacts/comment-checker_${{ github.ref_name }}_darwin_arm64.tar.gz | cut -d ' ' -f 1)
-          AMD64_SHA=$(sha256sum artifacts/comment-checker_${{ github.ref_name }}_darwin_amd64.tar.gz | cut -d ' ' -f 1)
-          echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
-          echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
+          ARM64_SHA=$(sha256sum "artifacts/comment-checker_${{ github.ref_name }}_darwin_arm64.tar.gz" | cut -d ' ' -f 1)
+          AMD64_SHA=$(sha256sum "artifacts/comment-checker_${{ github.ref_name }}_darwin_amd64.tar.gz" | cut -d ' ' -f 1)
+          echo "arm64_sha=$ARM64_SHA" >> "$GITHUB_OUTPUT"
+          echo "amd64_sha=$AMD64_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Update Homebrew Formula
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          VERSION=${{ github.ref_name }}
+          VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}
           
           cat > formula.rb << 'EOF'
@@ -204,7 +255,7 @@ jobs:
           sed -i "s/ARM64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.arm64_sha }}/g" formula.rb
           sed -i "s/AMD64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.amd64_sha }}/g" formula.rb
           
-          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/code-yeongyu/homebrew-tap.git
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/code-yeongyu/homebrew-tap.git"
           mkdir -p homebrew-tap/Formula
           cp formula.rb homebrew-tap/Formula/comment-checker.rb
           cd homebrew-tap
@@ -234,21 +285,122 @@ jobs:
       - name: Configure npm registry
         run: npm config set registry https://registry.npmjs.org
 
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
       - name: Extract version
         id: version
         run: |
-          VERSION=${{ github.ref_name }}
+          VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Update package version
+      - name: Prepare npm packages
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          cd npm/comment-checker
-          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
+          TAG="${{ github.ref_name }}"
+          PACKAGES=(
+            npm/comment-checker-darwin-arm64
+            npm/comment-checker-darwin-x64
+            npm/comment-checker-linux-arm64
+            npm/comment-checker-linux-x64
+            npm/comment-checker-win32-x64
+            npm/comment-checker
+          )
 
-      - name: Publish to npm
+          for PACKAGE in "${PACKAGES[@]}"; do
+            jq --arg v "$VERSION" '.version = $v' "$PACKAGE/package.json" > "$PACKAGE/package.json.tmp"
+            mv "$PACKAGE/package.json.tmp" "$PACKAGE/package.json"
+          done
+
+          jq --arg v "$VERSION" '
+            .optionalDependencies = {
+              "@code-yeongyu/comment-checker-darwin-arm64": $v,
+              "@code-yeongyu/comment-checker-darwin-x64": $v,
+              "@code-yeongyu/comment-checker-linux-arm64": $v,
+              "@code-yeongyu/comment-checker-linux-x64": $v,
+              "@code-yeongyu/comment-checker-win32-x64": $v
+            }
+          ' npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
+          mv npm/comment-checker/package.json.tmp npm/comment-checker/package.json
+
+          mkdir -p npm/comment-checker-darwin-arm64/bin
+          mkdir -p npm/comment-checker-darwin-x64/bin
+          mkdir -p npm/comment-checker-linux-arm64/bin
+          mkdir -p npm/comment-checker-linux-x64/bin
+          mkdir -p npm/comment-checker-win32-x64/bin
+
+          mkdir -p /tmp/comment-checker-npm/darwin-arm64
+          mkdir -p /tmp/comment-checker-npm/darwin-amd64
+          mkdir -p /tmp/comment-checker-npm/linux-arm64
+          mkdir -p /tmp/comment-checker-npm/linux-amd64
+          mkdir -p /tmp/comment-checker-npm/windows-amd64
+
+          tar -xzf "artifacts/comment-checker_${TAG}_darwin_arm64.tar.gz" -C /tmp/comment-checker-npm/darwin-arm64
+          tar -xzf "artifacts/comment-checker_${TAG}_darwin_amd64.tar.gz" -C /tmp/comment-checker-npm/darwin-amd64
+          tar -xzf "artifacts/comment-checker_${TAG}_linux_arm64.tar.gz" -C /tmp/comment-checker-npm/linux-arm64
+          tar -xzf "artifacts/comment-checker_${TAG}_linux_amd64.tar.gz" -C /tmp/comment-checker-npm/linux-amd64
+          unzip -o "artifacts/comment-checker_${TAG}_windows_amd64.zip" -d /tmp/comment-checker-npm/windows-amd64
+
+          cp /tmp/comment-checker-npm/darwin-arm64/comment-checker npm/comment-checker-darwin-arm64/bin/comment-checker
+          cp /tmp/comment-checker-npm/darwin-amd64/comment-checker npm/comment-checker-darwin-x64/bin/comment-checker
+          cp /tmp/comment-checker-npm/linux-arm64/comment-checker npm/comment-checker-linux-arm64/bin/comment-checker
+          cp /tmp/comment-checker-npm/linux-amd64/comment-checker npm/comment-checker-linux-x64/bin/comment-checker
+          cp /tmp/comment-checker-npm/windows-amd64/comment-checker.exe npm/comment-checker-win32-x64/bin/comment-checker.exe
+
+          chmod +x npm/comment-checker-darwin-arm64/bin/comment-checker
+          chmod +x npm/comment-checker-darwin-x64/bin/comment-checker
+          chmod +x npm/comment-checker-linux-arm64/bin/comment-checker
+          chmod +x npm/comment-checker-linux-x64/bin/comment-checker
+
+      - name: Test npm package
+        run: node --test npm/comment-checker/*.test.js
+
+      - name: Verify npm package contents
+        run: |
+          set -euo pipefail
+          root_pack=$(cd npm/comment-checker && npm pack --dry-run --json)
+          echo "$root_pack"
+          echo "$root_pack" | jq -e '
+            .[0].files
+            | map(.path)
+            | contains(["cli.js", "index.js", "package.json", "postinstall.js"])
+              and all(.[]; startswith("bin/") | not)
+          '
+
+          for PACKAGE in \
+            npm/comment-checker-darwin-arm64 \
+            npm/comment-checker-darwin-x64 \
+            npm/comment-checker-linux-arm64 \
+            npm/comment-checker-linux-x64
+          do
+            pack=$(cd "$PACKAGE" && npm pack --dry-run --json)
+            echo "$pack"
+            echo "$pack" | jq -e '.[0].files | any(.path == "bin/comment-checker")'
+          done
+
+          win_pack=$(cd npm/comment-checker-win32-x64 && npm pack --dry-run --json)
+          echo "$win_pack"
+          echo "$win_pack" | jq -e '.[0].files | any(.path == "bin/comment-checker.exe")'
+
+      - name: Publish platform packages to npm
+        env:
+          NPM_CONFIG_PROVENANCE: true
+        run: |
+          for PACKAGE in \
+            npm/comment-checker-darwin-arm64 \
+            npm/comment-checker-darwin-x64 \
+            npm/comment-checker-linux-arm64 \
+            npm/comment-checker-linux-x64 \
+            npm/comment-checker-win32-x64
+          do
+            (cd "$PACKAGE" && npm publish --access public --provenance)
+          done
+
+      - name: Publish root package to npm
         env:
           NPM_CONFIG_PROVENANCE: true
         run: |
