@@ -21,6 +21,13 @@ exceptions exist. BDD comments (`# given`, `# when`, `# then`), linter directive
 
 ## install
 
+### npm / bun
+
+```bash
+npm install -g @code-yeongyu/comment-checker
+bun add -g @code-yeongyu/comment-checker
+```
+
 ### homebrew (macos/linux)
 
 ```bash
