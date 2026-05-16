@@ -10,23 +10,19 @@ import (
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
-// CommentDetector detects comments in source code using tree-sitter.
 type CommentDetector struct {
 	registry *LanguageRegistry
 }
 
-// NewCommentDetector creates a new CommentDetector instance.
 func NewCommentDetector() *CommentDetector {
 	return &CommentDetector{
 		registry: NewLanguageRegistry(),
 	}
 }
 
-// Detect extracts comments from the given source code.
 func (d *CommentDetector) Detect(content, filePath string, includeDocstrings bool) []models.CommentInfo {
 	ext := strings.TrimPrefix(filepath.Ext(filePath), ".")
 	if ext == "" {
-		// Handle files like "Dockerfile"
 		ext = strings.ToLower(filepath.Base(filePath))
 	}
 
@@ -93,30 +89,19 @@ func (d *CommentDetector) Detect(content, filePath string, includeDocstrings boo
 		}
 	}
 
-	// Detect docstrings if requested
 	if includeDocstrings {
-		docstrings := d.detectDocstrings(sourceCode, filePath, lang, langName)
+		docstrings := d.detectDocstrings(sourceCode, filePath, lang, langName, tree)
 		comments = append(comments, docstrings...)
 	}
 
 	return comments
 }
 
-// detectDocstrings extracts docstrings using language-specific queries.
-func (d *CommentDetector) detectDocstrings(sourceCode []byte, filePath string, lang *sitter.Language, langName string) []models.CommentInfo {
+func (d *CommentDetector) detectDocstrings(sourceCode []byte, filePath string, lang *sitter.Language, langName string, tree *sitter.Tree) []models.CommentInfo {
 	docQuery, ok := DocstringQueries[langName]
 	if !ok {
 		return nil
 	}
-
-	parser := sitter.NewParser()
-	parser.SetLanguage(lang)
-
-	tree, err := parser.ParseCtx(context.Background(), nil, sourceCode)
-	if err != nil {
-		return nil
-	}
-	defer tree.Close()
 
 	query, err := sitter.NewQuery([]byte(docQuery), lang)
 	if err != nil {
@@ -152,11 +137,9 @@ func (d *CommentDetector) detectDocstrings(sourceCode []byte, filePath string, l
 	return docstrings
 }
 
-// determineCommentType determines the type of comment based on its text and node type.
 func (d *CommentDetector) determineCommentType(text, nodeType string) models.CommentType {
 	stripped := strings.TrimSpace(text)
 
-	// Check node type first (for Rust)
 	if nodeType == "line_comment" {
 		return models.CommentTypeLine
 	}
@@ -164,17 +147,14 @@ func (d *CommentDetector) determineCommentType(text, nodeType string) models.Com
 		return models.CommentTypeBlock
 	}
 
-	// Check for docstrings
 	if strings.HasPrefix(stripped, `"""`) || strings.HasPrefix(stripped, "'''") {
 		return models.CommentTypeDocstring
 	}
 
-	// Check for line comments
 	if strings.HasPrefix(stripped, "//") || strings.HasPrefix(stripped, "#") {
 		return models.CommentTypeLine
 	}
 
-	// Check for block comments
 	if strings.HasPrefix(stripped, "/*") || strings.HasPrefix(stripped, "<!--") || strings.HasPrefix(stripped, "--") {
 		return models.CommentTypeBlock
 	}

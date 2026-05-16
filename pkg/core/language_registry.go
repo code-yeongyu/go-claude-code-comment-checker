@@ -2,7 +2,6 @@ package core
 
 import (
 	"strings"
-	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/bash"
@@ -38,48 +37,46 @@ import (
 	"github.com/smacker/go-tree-sitter/yaml"
 )
 
-// ExtensionToLanguage maps file extensions to tree-sitter language names.
 var ExtensionToLanguage = map[string]string{
-	// Python
 	"py": "python",
-	// JavaScript/TypeScript
+
 	"js": "javascript", "jsx": "javascript",
 	"ts": "typescript", "tsx": "tsx",
-	// Go
+
 	"go": "golang",
-	// Java/Kotlin/Scala
+
 	"java": "java", "kt": "kotlin", "scala": "scala",
-	// C/C++
+
 	"c": "c", "h": "c",
 	"cpp": "cpp", "cc": "cpp", "cxx": "cpp", "hpp": "cpp",
-	// Rust
+
 	"rs": "rust",
-	// Ruby
+
 	"rb": "ruby",
-	// Shell
+
 	"sh": "bash", "bash": "bash",
-	// C#
+
 	"cs": "csharp",
-	// Swift
+
 	"swift": "swift",
-	// Elixir
+
 	"ex": "elixir", "exs": "elixir",
-	// Lua
+
 	"lua": "lua",
-	// PHP
+
 	"php": "php",
-	// OCaml
+
 	"ml": "ocaml", "mli": "ocaml",
-	// SQL
+
 	"sql": "sql",
-	// Web
+
 	"html": "html", "htm": "html",
 	"css": "css",
-	// Config
+
 	"yaml": "yaml", "yml": "yaml",
 	"toml": "toml",
 	"hcl":  "hcl", "tf": "hcl",
-	// Others
+
 	"dockerfile": "dockerfile",
 	"proto":      "protobuf",
 	"svelte":     "svelte",
@@ -88,26 +85,17 @@ var ExtensionToLanguage = map[string]string{
 	"cue":        "cue",
 }
 
-// LanguageRegistry provides thread-safe access to tree-sitter parsers.
-type LanguageRegistry struct {
-	mu      sync.RWMutex
-	parsers map[string]*sitter.Parser
-}
+type LanguageRegistry struct{}
 
-// NewLanguageRegistry creates a new LanguageRegistry instance.
 func NewLanguageRegistry() *LanguageRegistry {
-	return &LanguageRegistry{
-		parsers: make(map[string]*sitter.Parser),
-	}
+	return &LanguageRegistry{}
 }
 
-// GetLanguageName returns the tree-sitter language name for a file extension.
 func (r *LanguageRegistry) GetLanguageName(extension string) string {
 	ext := strings.ToLower(strings.TrimPrefix(extension, "."))
 	return ExtensionToLanguage[ext]
 }
 
-// GetLanguage returns the tree-sitter Language for the given language name.
 func GetLanguage(name string) *sitter.Language {
 	switch name {
 	case "python":
@@ -177,37 +165,6 @@ func GetLanguage(name string) *sitter.Language {
 	}
 }
 
-// GetParser returns a parser for the given extension.
-// Parsers are cached for reuse.
-func (r *LanguageRegistry) GetParser(extension string) *sitter.Parser {
-	langName := r.GetLanguageName(extension)
-	if langName == "" {
-		return nil
-	}
-
-	r.mu.RLock()
-	if parser, ok := r.parsers[langName]; ok {
-		r.mu.RUnlock()
-		return parser
-	}
-	r.mu.RUnlock()
-
-	lang := GetLanguage(langName)
-	if lang == nil {
-		return nil
-	}
-
-	parser := sitter.NewParser()
-	parser.SetLanguage(lang)
-
-	r.mu.Lock()
-	r.parsers[langName] = parser
-	r.mu.Unlock()
-
-	return parser
-}
-
-// IsSupported returns true if the extension is supported.
 func (r *LanguageRegistry) IsSupported(extension string) bool {
 	return r.GetLanguageName(extension) != ""
 }
