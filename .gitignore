@@ -3,8 +3,8 @@
 *.exe
 npm/comment-checker/bin/comment-checker
 npm/comment-checker/bin/comment-checker.exe
-npm/comment-checker-*/bin/comment-checker
-npm/comment-checker-*/bin/comment-checker.exe
+npm/comment-checker/vendor/**/comment-checker
+npm/comment-checker/vendor/**/comment-checker.exe
 
 # IDE
 .idea/

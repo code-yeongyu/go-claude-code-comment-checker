@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtempSync, readFileSync, rmSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { Readable } = require("node:stream");
@@ -98,4 +98,33 @@ test("main exits non-zero when installation fails", async () => {
   assert.deepEqual(exits, [1]);
   assert.match(errors.join("\n"), /Failed to install binary/);
   assert.match(errors.join("\n"), /download failed/);
+});
+
+test("install skips download when bundled binary exists", async () => {
+  // given
+  const root = tempDir();
+  const logs = [];
+  try {
+    const vendorDir = join(root, "vendor", "linux-x64");
+    mkdirSync(vendorDir, { recursive: true });
+    writeFileSync(join(vendorDir, "comment-checker"), "");
+
+    // when
+    await postinstall.install({
+      arch: "x64",
+      baseDir: root,
+      downloadFile: async () => {
+        throw new Error("download should not run");
+      },
+      log: (message) => {
+        logs.push(message);
+      },
+      platform: "linux",
+    });
+
+    // then
+    assert.match(logs.join("\n"), /Bundled linux-x64 binary already exists/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

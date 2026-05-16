@@ -141,7 +141,13 @@ async function install(options = {}) {
   const baseDir = options.baseDir || __dirname;
   const binDir = join(baseDir, "bin");
   const binaryName = platform === "win32" ? "comment-checker.exe" : "comment-checker";
+  const bundledBinaryPath = join(baseDir, "vendor", platformKey, binaryName);
   const binaryPath = join(binDir, binaryName);
+
+  if (existsSync(bundledBinaryPath)) {
+    log(`[comment-checker] Bundled ${platformKey} binary already exists at ${bundledBinaryPath}`);
+    return;
+  }
 
   if (existsSync(binaryPath)) {
     log(`[comment-checker] Binary already exists at ${binaryPath}`);

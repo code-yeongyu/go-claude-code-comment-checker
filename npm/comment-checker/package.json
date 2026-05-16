@@ -9,7 +9,8 @@
   "files": [
     "index.js",
     "cli.js",
-    "postinstall.js"
+    "postinstall.js",
+    "vendor"
   ],
   "scripts": {
     "postinstall": "node postinstall.js"
@@ -34,12 +35,5 @@
   "homepage": "https://github.com/code-yeongyu/go-claude-code-comment-checker#readme",
   "engines": {
     "node": ">=18"
-  },
-  "optionalDependencies": {
-    "@code-yeongyu/comment-checker-darwin-arm64": "0.7.1",
-    "@code-yeongyu/comment-checker-darwin-x64": "0.7.1",
-    "@code-yeongyu/comment-checker-linux-arm64": "0.7.1",
-    "@code-yeongyu/comment-checker-linux-x64": "0.7.1",
-    "@code-yeongyu/comment-checker-win32-x64": "0.7.1"
   }
 }

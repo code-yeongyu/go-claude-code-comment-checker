@@ -18,10 +18,6 @@ function tempDir() {
   return mkdtempSync(join(tmpdir(), "comment-checker-cli-"));
 }
 
-function currentPlatformPackageName() {
-  return checker.PLATFORM_PACKAGES[checker.getPlatformKey()];
-}
-
 test("cli wrapper propagates exit code and output", () => {
   // given
   const root = tempDir();
@@ -29,13 +25,11 @@ test("cli wrapper propagates exit code and output", () => {
     copyFileSync(join(__dirname, "index.js"), join(root, "index.js"));
     copyFileSync(join(__dirname, "cli.js"), join(root, "cli.js"));
 
-    const packageName = currentPlatformPackageName();
-    const packageDir = join(root, "node_modules", ...packageName.split("/"));
-    const binDir = join(packageDir, "bin");
+    const platformKey = checker.getPlatformKey();
+    const binDir = join(root, "vendor", platformKey);
     const binaryName = process.platform === "win32" ? "comment-checker.exe" : "comment-checker";
     const binaryPath = join(binDir, binaryName);
     mkdirSync(binDir, { recursive: true });
-    writeFileSync(join(packageDir, "package.json"), JSON.stringify({ name: packageName }));
     writeFileSync(
       binaryPath,
       "#!/usr/bin/env node\nconsole.log('native stdout ' + process.argv.slice(2).join(' '));\nconsole.error('native stderr');\nprocess.exit(2);\n"
