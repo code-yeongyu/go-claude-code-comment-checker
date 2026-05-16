@@ -1,23 +1,28 @@
 package output
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
-// BuildCommentsXML builds <comments> XML block for a given file and its comments.
-// Returns XML formatted string with comments, or empty string if no comments provided.
 func BuildCommentsXML(comments []models.CommentInfo, filePath string) string {
 	if len(comments) == 0 {
 		return ""
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<comments file=\"%s\">\n", filePath))
+	sb.Grow(24 + len(filePath) + len(comments)*48)
+	sb.WriteString("<comments file=\"")
+	sb.WriteString(filePath)
+	sb.WriteString("\">\n")
 	for _, comment := range comments {
-		sb.WriteString(fmt.Sprintf("\t<comment line-number=\"%d\">%s</comment>\n", comment.LineNumber, comment.Text))
+		sb.WriteString("\t<comment line-number=\"")
+		sb.WriteString(strconv.Itoa(comment.LineNumber))
+		sb.WriteString("\">")
+		sb.WriteString(comment.Text)
+		sb.WriteString("</comment>\n")
 	}
 	sb.WriteString("</comments>")
 

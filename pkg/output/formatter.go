@@ -1,25 +1,18 @@
 package output
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/filters"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
 )
 
-// FormatHookMessage formats comment detection results for Claude Code hooks.
-// Groups comments by file path and builds complete error message with
-// instructions and XML blocks for each file.
-// If customPrompt is provided, it replaces the default message template.
-// Use {{comments}} placeholder in customPrompt to insert detected comments XML.
-// Returns formatted hook error message, or empty string if no comments provided.
 func FormatHookMessage(comments []models.CommentInfo, customPrompt string) string {
 	if len(comments) == 0 {
 		return ""
 	}
 
-	// Group comments by file path
 	byFile := make(map[string][]models.CommentInfo)
 	fileOrder := make([]string, 0)
 	for _, comment := range comments {
@@ -29,7 +22,6 @@ func FormatHookMessage(comments []models.CommentInfo, customPrompt string) strin
 		byFile[comment.FilePath] = append(byFile[comment.FilePath], comment)
 	}
 
-	// Build comments XML
 	var commentsXML strings.Builder
 	for _, filePath := range fileOrder {
 		fileComments := byFile[filePath]
@@ -37,13 +29,10 @@ func FormatHookMessage(comments []models.CommentInfo, customPrompt string) strin
 		commentsXML.WriteString("\n")
 	}
 
-	// If custom prompt is provided, use it with {{comments}} replacement
 	if customPrompt != "" {
 		return strings.ReplaceAll(customPrompt, "{{comments}}", commentsXML.String())
 	}
 
-	// Default message template
-	// Detect agent memo comments
 	agentMemoFilter := filters.NewAgentMemoFilter()
 	var agentMemoComments []models.CommentInfo
 	for _, comment := range comments {
@@ -55,14 +44,12 @@ func FormatHookMessage(comments []models.CommentInfo, customPrompt string) strin
 
 	var sb strings.Builder
 
-	// Header
 	if hasAgentMemo {
 		sb.WriteString("🚨 AGENT MEMO COMMENT DETECTED - CODE SMELL ALERT 🚨\n\n")
 	} else {
 		sb.WriteString("COMMENT/DOCSTRING DETECTED - IMMEDIATE ACTION REQUIRED\n\n")
 	}
 
-	// Agent memo warning (if detected)
 	if hasAgentMemo {
 		sb.WriteString("⚠️  AGENT MEMO COMMENTS DETECTED - THIS IS A CODE SMELL  ⚠️\n\n")
 		sb.WriteString("You left \"memo-style\" comments that describe WHAT you changed or HOW you implemented something.\n")
@@ -85,7 +72,11 @@ func FormatHookMessage(comments []models.CommentInfo, customPrompt string) strin
 		sb.WriteString("  -> Let git commit messages document the \"what\" and \"why\"\n\n")
 		sb.WriteString("Detected agent memo comments:\n")
 		for _, memo := range agentMemoComments {
-			sb.WriteString(fmt.Sprintf("  - Line %d: %s\n", memo.LineNumber, strings.TrimSpace(memo.Text)))
+			sb.WriteString("  - Line ")
+			sb.WriteString(strconv.Itoa(memo.LineNumber))
+			sb.WriteString(": ")
+			sb.WriteString(strings.TrimSpace(memo.Text))
+			sb.WriteByte('\n')
 		}
 		sb.WriteString("\n---\n\n")
 	}
