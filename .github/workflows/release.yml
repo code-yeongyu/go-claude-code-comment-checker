@@ -272,6 +272,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@latest
@@ -382,6 +383,7 @@ jobs:
 
       - name: Publish platform packages to npm
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
         run: |
           for PACKAGE in \
@@ -396,6 +398,7 @@ jobs:
 
       - name: Publish root package to npm
         env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
         run: |
           cd npm/comment-checker
