@@ -1,6 +1,10 @@
 # Build artifacts
-comment-checker
+/comment-checker
 *.exe
+npm/comment-checker/bin/comment-checker
+npm/comment-checker/bin/comment-checker.exe
+npm/comment-checker-*/bin/comment-checker
+npm/comment-checker-*/bin/comment-checker.exe
 
 # IDE
 .idea/

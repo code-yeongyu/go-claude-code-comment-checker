@@ -1,15 +1,15 @@
 {
   "name": "@code-yeongyu/comment-checker",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Multi-language comment detection hook for Claude Code/OpenCode. Native binary powered by tree-sitter.",
   "main": "index.js",
   "bin": {
-    "comment-checker": "bin/comment-checker"
+    "comment-checker": "cli.js"
   },
   "files": [
     "index.js",
-    "postinstall.js",
-    "bin"
+    "cli.js",
+    "postinstall.js"
   ],
   "scripts": {
     "postinstall": "node postinstall.js"
@@ -35,13 +35,11 @@
   "engines": {
     "node": ">=18"
   },
-  "os": [
-    "darwin",
-    "linux",
-    "win32"
-  ],
-  "cpu": [
-    "x64",
-    "arm64"
-  ]
+  "optionalDependencies": {
+    "@code-yeongyu/comment-checker-darwin-arm64": "0.7.1",
+    "@code-yeongyu/comment-checker-darwin-x64": "0.7.1",
+    "@code-yeongyu/comment-checker-linux-arm64": "0.7.1",
+    "@code-yeongyu/comment-checker-linux-x64": "0.7.1",
+    "@code-yeongyu/comment-checker-win32-x64": "0.7.1"
+  }
 }

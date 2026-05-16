@@ -1,12 +1,12 @@
 {
-  "name": "@code-yeongyu/comment-checker-darwin-arm64",
+  "name": "@code-yeongyu/comment-checker-win32-x64",
   "version": "0.7.1",
-  "description": "comment-checker binary for darwin-arm64",
+  "description": "comment-checker binary for win32-x64",
   "os": [
-    "darwin"
+    "win32"
   ],
   "cpu": [
-    "arm64"
+    "x64"
   ],
   "main": "index.js",
   "files": [
