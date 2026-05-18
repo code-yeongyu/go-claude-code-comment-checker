@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/code-yeongyu/go-claude-code-comment-checker/pkg/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Detect_PythonLineComment_ReturnsCommentInfo(t *testing.T) {
@@ -97,4 +97,26 @@ func main() {}`
 	assert.Equal(t, "main.go", comments[0].FilePath)
 	assert.Equal(t, models.CommentTypeLine, comments[0].CommentType)
 	assert.False(t, comments[0].IsDocstring)
+}
+
+func Test_Detect_RepeatedPythonChecks_ReusesCompiledQueries(t *testing.T) {
+	// given
+	detector := NewCommentDetector()
+	code := `"""Module docstring."""
+# regular comment
+def hello():
+    """Function docstring."""
+    return "world"`
+
+	// when
+	for range 20 {
+		comments := detector.Detect(code, "module.py", true)
+		assert.Len(t, comments, 3)
+	}
+
+	// then
+	detector.queryMu.Lock()
+	defer detector.queryMu.Unlock()
+	assert.Len(t, detector.commentQueries, 1)
+	assert.Len(t, detector.docstringQueries, 1)
 }
