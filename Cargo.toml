@@ -1,0 +1,87 @@
+[package]
+name = "comment-checker"
+version = "0.8.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Multi-language comment detection hook for Claude Code/OpenCode"
+repository = "https://github.com/code-yeongyu/go-claude-code-comment-checker"
+keywords = ["comments", "tree-sitter", "claude-code", "opencode", "hook"]
+categories = ["command-line-utilities", "development-tools"]
+
+[workspace]
+members = [".", "bindings/napi", "bindings/wasm"]
+resolver = "3"
+
+[[bin]]
+name = "comment-checker"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.53", features = ["derive"] }
+itoa = "1.0.15"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+tree-sitter = "0.26.8"
+tree-sitter-language-pack = { version = "1.8.1", default-features = false }
+
+[features]
+default = []
+
+[dev-dependencies]
+criterion = { version = "0.8.0", features = ["html_reports"] }
+tempfile = "3.23.0"
+
+[[bench]]
+name = "comment_checker"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+debug = "line-tables-only"
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+codegen-units = 256
+split-debuginfo = "unpacked"
+
+[lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+non_ascii_idents = "deny"
+trivial_numeric_casts = "warn"
+unused_lifetimes = "warn"
+single_use_lifetimes = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+mem_forget = "deny"
+as_underscore = "deny"
+as_ptr_cast_mut = "deny"
+fn_to_numeric_cast_any = "deny"
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+print_stderr = "allow"
+print_stdout = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

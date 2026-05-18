@@ -1,0 +1,3 @@
+[env]
+TSLP_LANGUAGES = "bash,c,cpp,csharp,css,cue,dockerfile,elixir,elm,go,groovy,hcl,html,java,javascript,kotlin,lua,ocaml,php,proto,python,ruby,rust,scala,sql,svelte,swift,toml,tsx,typescript,yaml"
+TSLP_LINK_MODE = "static"

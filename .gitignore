@@ -1,5 +1,7 @@
 # Build artifacts
 /comment-checker
+target/
+coverage.out
 *.exe
 npm/comment-checker/bin/comment-checker
 npm/comment-checker/bin/comment-checker.exe
@@ -17,3 +19,5 @@ npm/comment-checker/vendor/**/comment-checker.exe
 # Work notes
 ai-todolist.md
 notepad.md
+evidence/
+plans/

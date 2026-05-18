@@ -1,0 +1,51 @@
+[package]
+name = "comment-checker-wasm"
+version = "0.8.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "wasm-bindgen bindings for comment-checker"
+repository = "https://github.com/code-yeongyu/go-claude-code-comment-checker"
+keywords = ["comments", "tree-sitter", "wasm", "wasm-bindgen", "hook"]
+categories = ["development-tools", "wasm"]
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+comment-checker = { path = "../.." }
+wasm-bindgen = "0.2.121"
+
+[lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+non_ascii_idents = "deny"
+trivial_numeric_casts = "warn"
+unused_lifetimes = "warn"
+single_use_lifetimes = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+multiple_unsafe_ops_per_block = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+mem_forget = "deny"
+as_underscore = "deny"
+as_ptr_cast_mut = "deny"
+fn_to_numeric_cast_any = "deny"
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
