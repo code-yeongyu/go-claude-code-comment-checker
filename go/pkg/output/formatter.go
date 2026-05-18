@@ -59,7 +59,6 @@ func FormatHookMessage(comments []models.CommentInfo, customPrompt string) strin
 		sb.WriteString("  - \"Added new...\", \"Removed...\", \"Refactored...\"\n")
 		sb.WriteString("  - \"This implements...\", \"Here we...\", \"Now this...\"\n")
 		sb.WriteString("  - \"Note:\", \"Implementation of...\"\n")
-		sb.WriteString("  - Korean: \"여기서 변경됨\", \"구현함\", \"추가함\", \"수정됨\"\n\n")
 		sb.WriteString("WHY THIS IS BAD:\n")
 		sb.WriteString("  1. Code should be self-documenting - if you need to explain what changed, the code isn't clear enough\n")
 		sb.WriteString("  2. These comments become outdated instantly and mislead future readers\n")

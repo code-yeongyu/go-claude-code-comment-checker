@@ -39,7 +39,7 @@ func Test_ReadFile_UTF8EncodedFile_ReturnsContent(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "utf8_test.py")
-	content := "# 한글 주석\nprint('hello')"
+	content := "# cafe comment\nprint('hello')"
 	err := os.WriteFile(filePath, []byte(content), 0644)
 	assert.NoError(t, err)
 
@@ -47,7 +47,7 @@ func Test_ReadFile_UTF8EncodedFile_ReturnsContent(t *testing.T) {
 	result := ReadFile(filePath)
 
 	// then
-	assert.Contains(t, result, "한글 주석")
+	assert.Contains(t, result, "cafe comment")
 	assert.Contains(t, result, "print('hello')")
 }
 

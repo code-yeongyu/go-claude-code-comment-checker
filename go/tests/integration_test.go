@@ -526,11 +526,11 @@ print("hello")`
 	assert.Contains(t, message, "CODE SMELL")
 }
 
-func Test_FullPipeline_WithAgentMemo_Korean_DetectsAsCodeSmell(t *testing.T) {
+func Test_FullPipeline_WithAgentMemo_SwitchedFrom_DetectsAsCodeSmell(t *testing.T) {
 	// given
 	detector := core.NewCommentDetector()
 	agentMemoFilter := filters.NewAgentMemoFilter()
-	code := `# 여기서 값이 변경됨
+	code := `# Switched from old to new
 print("hello")`
 
 	// when

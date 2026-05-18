@@ -20,7 +20,7 @@ func BenchmarkAgentMemoEarlyHit(b *testing.B) {
 
 func BenchmarkAgentMemoLateHit(b *testing.B) {
 	filter := NewAgentMemoFilter()
-	comment := models.CommentInfo{Text: "# 기존에는 다르게 동작했음"}
+	comment := models.CommentInfo{Text: "// Switched from old to new"}
 
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

@@ -32,18 +32,6 @@ var agentMemoPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^[\s#/*-]*converted?\s+(from|to)\b`),
 	regexp.MustCompile(`(?i)^[\s#/*-]*migrated?\s+(from|to)?\b`),
 	regexp.MustCompile(`(?i)^[\s#/*-]*switched?\s+(from|to)\b`),
-
-	regexp.MustCompile(`(?i)여기(서|에서)\s*`),
-	regexp.MustCompile(`(?i)(으로|로)\s*(바뀜|변경|변환)`),
-	regexp.MustCompile(`(?i)구현(임|함|했|된|됨)`),
-	regexp.MustCompile(`(?i)추가(함|했|된|됨)`),
-	regexp.MustCompile(`(?i)삭제(함|했|된|됨)`),
-	regexp.MustCompile(`(?i)수정(함|했|된|됨)`),
-	regexp.MustCompile(`(?i)변경(함|했|된|됨)`),
-	regexp.MustCompile(`(?i)리팩(터|토)링`),
-	regexp.MustCompile(`(?i)이전(에는|엔)`),
-	regexp.MustCompile(`(?i)기존(에는|엔|의)`),
-	regexp.MustCompile(`(?i)에서\s+\S+\s*(으로|로)\b`),
 }
 
 type AgentMemoFilter struct{}
