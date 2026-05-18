@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	sitter "github.com/smacker/go-tree-sitter"
 
@@ -11,12 +12,17 @@ import (
 )
 
 type CommentDetector struct {
-	registry *LanguageRegistry
+	registry         *LanguageRegistry
+	queryMu          sync.Mutex
+	commentQueries   map[string]*sitter.Query
+	docstringQueries map[string]*sitter.Query
 }
 
 func NewCommentDetector() *CommentDetector {
 	return &CommentDetector{
-		registry: NewLanguageRegistry(),
+		registry:         NewLanguageRegistry(),
+		commentQueries:   make(map[string]*sitter.Query),
+		docstringQueries: make(map[string]*sitter.Query),
 	}
 }
 
@@ -46,16 +52,10 @@ func (d *CommentDetector) Detect(content, filePath string, includeDocstrings boo
 	}
 	defer tree.Close()
 
-	queryPattern := QueryTemplates[langName]
-	if queryPattern == "" {
-		queryPattern = "(comment) @comment"
-	}
-
-	query, err := sitter.NewQuery([]byte(queryPattern), lang)
-	if err != nil {
+	query := d.commentQueryFor(langName, lang)
+	if query == nil {
 		return nil
 	}
-	defer query.Close()
 
 	qc := sitter.NewQueryCursor()
 	defer qc.Close()
@@ -98,16 +98,10 @@ func (d *CommentDetector) Detect(content, filePath string, includeDocstrings boo
 }
 
 func (d *CommentDetector) detectDocstrings(sourceCode []byte, filePath string, lang *sitter.Language, langName string, tree *sitter.Tree) []models.CommentInfo {
-	docQuery, ok := DocstringQueries[langName]
-	if !ok {
+	query := d.docstringQueryFor(langName, lang)
+	if query == nil {
 		return nil
 	}
-
-	query, err := sitter.NewQuery([]byte(docQuery), lang)
-	if err != nil {
-		return nil
-	}
-	defer query.Close()
 
 	qc := sitter.NewQueryCursor()
 	defer qc.Close()
@@ -135,6 +129,47 @@ func (d *CommentDetector) detectDocstrings(sourceCode []byte, filePath string, l
 	}
 
 	return docstrings
+}
+
+func (d *CommentDetector) commentQueryFor(langName string, lang *sitter.Language) *sitter.Query {
+	queryPattern := QueryTemplates[langName]
+	if queryPattern == "" {
+		queryPattern = "(comment) @comment"
+	}
+
+	return d.cachedQuery(d.commentQueries, langName, queryPattern, lang)
+}
+
+func (d *CommentDetector) docstringQueryFor(langName string, lang *sitter.Language) *sitter.Query {
+	docQuery, ok := DocstringQueries[langName]
+	if !ok {
+		return nil
+	}
+
+	return d.cachedQuery(d.docstringQueries, langName, docQuery, lang)
+}
+
+func (d *CommentDetector) cachedQuery(
+	cache map[string]*sitter.Query,
+	langName string,
+	queryPattern string,
+	lang *sitter.Language,
+) *sitter.Query {
+	d.queryMu.Lock()
+	defer d.queryMu.Unlock()
+
+	query := cache[langName]
+	if query != nil {
+		return query
+	}
+
+	compiledQuery, err := sitter.NewQuery([]byte(queryPattern), lang)
+	if err != nil {
+		return nil
+	}
+
+	cache[langName] = compiledQuery
+	return compiledQuery
 }
 
 func (d *CommentDetector) determineCommentType(text, nodeType string) models.CommentType {
