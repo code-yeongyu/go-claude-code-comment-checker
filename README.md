@@ -1,7 +1,5 @@
 # comment-checker
 
-[한국어](README.ko.md)
-
 > 100% vibe coded. zero comments in my code, zero comments in yours.
 >
 > **this entire repo - code, docs, readme, everything - was written by LLMs.**
@@ -9,7 +7,7 @@
 
 A PostToolUse hook for Claude Code / OpenCode that yells at you when you write unnecessary comments.
 
-Built with Go + tree-sitter. Fast. Opinionated. No mercy.
+Built with Rust + tree-sitter. Fast. Opinionated. No mercy.
 
 ## why
 
@@ -33,12 +31,6 @@ bun add -g @code-yeongyu/comment-checker
 ```bash
 brew tap code-yeongyu/tap
 brew install comment-checker
-```
-
-### go install
-
-```bash
-go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-checker@latest
 ```
 
 ### manual
@@ -105,7 +97,7 @@ def test_something():
 
 python, go, typescript, javascript, rust, c, c++, java, ruby, php, swift, kotlin, scala, elixir, and more.
 
-if tree-sitter supports it, we support it.
+if tree-sitter supports it, we support it. the archived Go implementation lives under `go/`; the production CLI is Rust.
 
 ## how it works
 
@@ -116,6 +108,8 @@ if tree-sitter supports it, we support it.
 5. finds comment nodes
 6. filters out allowed patterns (BDD, directives, shebangs)
 7. if anything remains → exit 2 with warning message
+
+the Rust workspace also has buildable `wasm32-unknown-unknown` and N-API binding crates for future consumers. those paths are CI buildability gates for now; npm still ships native binaries.
 
 ## exit codes
 

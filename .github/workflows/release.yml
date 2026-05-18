@@ -9,27 +9,55 @@ permissions:
   contents: write
   id-token: write
 
+env:
+  CARGO_TERM_COLOR: always
+  TSLP_LINK_MODE: static
+
 jobs:
   qa:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
+      - name: Set up Rust
+        run: |
+          rustup component add rustfmt clippy
+          rustup target add wasm32-unknown-unknown
+
+      - name: Set up LLVM for wasm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      - name: Build
-        run: go build -o comment-checker ./cmd/comment-checker
+      - name: Format
+        run: cargo fmt --all -- --check
 
-      - name: Test
-        run: go test ./... -v -race -coverprofile=coverage.out
+      - name: Clippy core
+        run: cargo clippy -p comment-checker --all-targets --all-features -- -D warnings
+
+      - name: Clippy bindings
+        run: |
+          cargo clippy -p comment-checker-napi --all-targets -- -D warnings
+          cargo clippy -p comment-checker-wasm --all-targets -- -D warnings
+
+      - name: Test Rust
+        run: cargo test -p comment-checker --all-targets --all-features
+
+      - name: Compile benchmarks
+        run: cargo bench -p comment-checker --bench comment_checker --no-run
+
+      - name: Build wasm binding
+        env:
+          CC_wasm32_unknown_unknown: clang
+        run: cargo build -p comment-checker-wasm --lib --target wasm32-unknown-unknown --locked
+
+      - name: Build N-API binding
+        run: cargo build -p comment-checker-napi --release --locked
 
       - name: Test npm package
         run: node --test npm/comment-checker/*.test.js
@@ -37,98 +65,77 @@ jobs:
   build:
     needs: qa
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            os_name: darwin
+            arch: amd64
+            binary_name: comment-checker
+            archive_ext: tar.gz
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            os_name: darwin
+            arch: arm64
+            binary_name: comment-checker
+            archive_ext: tar.gz
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            os_name: linux
+            arch: amd64
+            binary_name: comment-checker
+            archive_ext: tar.gz
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            os_name: linux
+            arch: arm64
+            binary_name: comment-checker
+            archive_ext: tar.gz
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            os_name: windows
+            arch: amd64
+            binary_name: comment-checker.exe
+            archive_ext: zip
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
+      - name: Set up Rust target
+        run: rustup target add ${{ matrix.target }}
 
-      - name: Install cross-compiler (Linux ARM64)
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+      - name: Build release binary
+        run: cargo build -p comment-checker --release --locked --target ${{ matrix.target }}
+
+      - name: Package Unix artifact
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          set -euo pipefail
+          artifact="comment-checker_${{ github.ref_name }}_${{ matrix.os_name }}_${{ matrix.arch }}.tar.gz"
+          mkdir -p package
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" package/comment-checker
+          chmod +x package/comment-checker
+          cp LICENSE README.md package/
+          tar -czf "$artifact" -C package comment-checker LICENSE README.md
 
-      - name: Install MinGW (Windows)
-        if: matrix.goos == 'windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          path-type: inherit
-          update: true
-          install: >-
-            mingw-w64-x86_64-binutils
-            mingw-w64-x86_64-gcc
-
-      - name: Build (Unix)
-        if: matrix.goos != 'windows'
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
-          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
-          CXX: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-g++' || '' }}
+      - name: Package Windows artifact
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
         run: |
-          if [ "${{ matrix.goos }}" = "linux" ]; then
-            go build -ldflags="-s -w -extldflags '-static'" -o comment-checker ./cmd/comment-checker
-          else
-            go build -ldflags="-s -w" -o comment-checker ./cmd/comment-checker
-          fi
-          tar -czvf comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz comment-checker LICENSE README.md
+          $artifact = "comment-checker_${{ github.ref_name }}_${{ matrix.os_name }}_${{ matrix.arch }}.zip"
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" package/
+          Copy-Item LICENSE, README.md package/
+          Compress-Archive -Path package/* -DestinationPath $artifact -Force
 
-      - name: Build (Windows)
-        if: matrix.goos == 'windows'
-        shell: msys2 {0}
-        env:
-          GOOS: windows
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
-          CC: gcc
-          CXX: g++
-          CGO_LDFLAGS: -static -static-libgcc -static-libstdc++
-        run: |
-          go build -ldflags="-s -w -extldflags '-static'" -o comment-checker.exe ./cmd/comment-checker
-          objdump -p comment-checker.exe | tee windows-dependencies.txt
-          if grep -E 'DLL Name: (libstdc\+\+-6|libgcc_s_seh-1|libgcc_s_dw2-1|libwinpthread-1)\.dll' windows-dependencies.txt; then
-            echo "Windows binary still references a MinGW runtime DLL" >&2
-            exit 1
-          fi
-          powershell -NoProfile -Command 'Compress-Archive -Path comment-checker.exe, LICENSE, README.md -DestinationPath comment-checker_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip'
-
-      - name: Upload artifact (Unix)
-        if: matrix.goos != 'windows'
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: comment-checker_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: comment-checker_*.tar.gz
-
-      - name: Upload artifact (Windows)
-        if: matrix.goos == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: comment-checker_${{ matrix.goos }}_${{ matrix.goarch }}
-          path: comment-checker_*.zip
+          name: comment-checker_${{ matrix.os_name }}_${{ matrix.arch }}
+          path: comment-checker_*.${{ matrix.archive_ext }}
 
   release:
     needs: build
@@ -170,18 +177,15 @@ jobs:
             brew install comment-checker
             ```
 
-            ### Go Install
-            ```bash
-            go install github.com/code-yeongyu/go-claude-code-comment-checker/cmd/comment-checker@latest
-            ```
-
             ### Manual Download
-            Download the appropriate binary for your platform from the assets below.
-            
+            Download the appropriate Rust native binary for your platform from the assets below.
+
             **Supported Platforms:**
             - macOS (arm64, x64)
             - Linux (arm64, x64)
             - Windows (x64)
+
+            The Rust library also has CI-enforced wasm32 and N-API buildability gates for future integrations.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -217,10 +221,10 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION=${VERSION#v}
-          
+
           cat > formula.rb << 'EOF'
           class CommentChecker < Formula
-            desc "Multi-language comment detection hook for Claude Code. 100% vibe coded."
+            desc "Multi-language comment detection hook for Claude Code and OpenCode"
             homepage "https://github.com/code-yeongyu/go-claude-code-comment-checker"
             version "VERSION_PLACEHOLDER"
             license "MIT"
@@ -244,11 +248,11 @@ jobs:
             end
           end
           EOF
-          
+
           sed -i "s/VERSION_PLACEHOLDER/$VERSION/g" formula.rb
           sed -i "s/ARM64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.arm64_sha }}/g" formula.rb
           sed -i "s/AMD64_SHA_PLACEHOLDER/${{ steps.checksums.outputs.amd64_sha }}/g" formula.rb
-          
+
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/code-yeongyu/homebrew-tap.git"
           mkdir -p homebrew-tap/Formula
           cp formula.rb homebrew-tap/Formula/comment-checker.rb
@@ -293,7 +297,7 @@ jobs:
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare npm packages
+      - name: Prepare npm package
         run: |
           VERSION=${{ steps.version.outputs.version }}
           TAG="${{ github.ref_name }}"
