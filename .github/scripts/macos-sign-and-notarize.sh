@@ -110,8 +110,14 @@ key_file="$work/AuthKey_${APPLE_API_KEY_ID}.p8"
 printf '%s' "$APPLE_API_KEY" > "$key_file"
 notary=(--key "$key_file" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
 archive="$work/notarize.zip"
-mkdir "$work/payload"
-cp "${files[@]}" "$work/payload/"
+# One directory per file: two inputs can share a basename (arm64 and x64 builds of the
+# same tool), and a flat copy would silently notarize only the last one.
+index=0
+for file in "${files[@]}"; do
+  mkdir -p "$work/payload/$index"
+  cp "$file" "$work/payload/$index/"
+  index=$((index + 1))
+done
 ditto -c -k --keepParent "$work/payload" "$archive"
 # notarytool --wait gives up on the first transient polling error (NSURLErrorDomain -1001)
 # while Apple keeps processing, so submit once and poll the submission ourselves.
