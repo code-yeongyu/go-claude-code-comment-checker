@@ -109,6 +109,21 @@ jobs:
       - name: Build release binary
         run: cargo build -p comment-checker --release --locked --target ${{ matrix.target }}
 
+      - name: Sign and notarize macOS binary
+        if: matrix.os_name == 'darwin'
+        timeout-minutes: 75
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          MACOS_SIGNING_REQUIRED: ${{ vars.MACOS_SIGNING_REQUIRED }}
+          BINARY: target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+        run: |
+          bash .github/scripts/macos-sign-and-notarize.sh --identifier ai.sisyphuslabs.comment-checker "$BINARY"
+          printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"a.ts","content":"const a = 1 // one"}}' | "$BINARY" > /dev/null || [ "$?" -eq 2 ]
+
       - name: Package Unix artifact
         if: matrix.archive_ext == 'tar.gz'
         shell: bash
