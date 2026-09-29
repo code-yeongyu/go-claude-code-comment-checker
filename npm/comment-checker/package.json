@@ -9,11 +9,17 @@
   "files": [
     "index.js",
     "cli.js",
-    "postinstall.js",
-    "vendor"
+    "postinstall.js"
   ],
   "scripts": {
     "postinstall": "node postinstall.js"
+  },
+  "optionalDependencies": {
+    "@code-yeongyu/comment-checker-darwin-arm64": "0.8.0",
+    "@code-yeongyu/comment-checker-darwin-x64": "0.8.0",
+    "@code-yeongyu/comment-checker-linux-arm64": "0.8.0",
+    "@code-yeongyu/comment-checker-linux-x64": "0.8.0",
+    "@code-yeongyu/comment-checker-win32-x64": "0.8.0"
   },
   "repository": {
     "type": "git",

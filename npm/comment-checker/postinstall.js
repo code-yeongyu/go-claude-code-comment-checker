@@ -13,6 +13,7 @@ const https = require("node:https");
 const { join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { pipeline } = require("node:stream/promises");
+const { resolvePlatformPackageBinary } = require("./index");
 
 const REPO = "code-yeongyu/go-claude-code-comment-checker";
 const MAX_REDIRECTS = 5;
@@ -143,6 +144,12 @@ async function install(options = {}) {
   const binaryName = platform === "win32" ? "comment-checker.exe" : "comment-checker";
   const bundledBinaryPath = join(baseDir, "vendor", platformKey, binaryName);
   const binaryPath = join(binDir, binaryName);
+  const platformPackageBinaryPath = resolvePlatformPackageBinary(platformKey, binaryName, baseDir);
+
+  if (platformPackageBinaryPath && existsSync(platformPackageBinaryPath)) {
+    log(`[comment-checker] Using ${platformKey} binary from ${platformPackageBinaryPath}`);
+    return;
+  }
 
   if (existsSync(bundledBinaryPath)) {
     log(`[comment-checker] Bundled ${platformKey} binary already exists at ${bundledBinaryPath}`);
