@@ -312,80 +312,17 @@ jobs:
           VERSION=${VERSION#v}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare npm package
-        run: |
-          VERSION=${{ steps.version.outputs.version }}
-          TAG="${{ github.ref_name }}"
-          jq --arg v "$VERSION" 'del(.optionalDependencies) | .version = $v' \
-            npm/comment-checker/package.json > npm/comment-checker/package.json.tmp
-          mv npm/comment-checker/package.json.tmp npm/comment-checker/package.json
-
-          mkdir -p npm/comment-checker/vendor/darwin-arm64
-          mkdir -p npm/comment-checker/vendor/darwin-x64
-          mkdir -p npm/comment-checker/vendor/linux-arm64
-          mkdir -p npm/comment-checker/vendor/linux-x64
-          mkdir -p npm/comment-checker/vendor/win32-x64
-
-          mkdir -p /tmp/comment-checker-npm/darwin-arm64
-          mkdir -p /tmp/comment-checker-npm/darwin-amd64
-          mkdir -p /tmp/comment-checker-npm/linux-arm64
-          mkdir -p /tmp/comment-checker-npm/linux-amd64
-          mkdir -p /tmp/comment-checker-npm/windows-amd64
-
-          tar -xzf "artifacts/comment-checker_${TAG}_darwin_arm64.tar.gz" -C /tmp/comment-checker-npm/darwin-arm64
-          tar -xzf "artifacts/comment-checker_${TAG}_darwin_amd64.tar.gz" -C /tmp/comment-checker-npm/darwin-amd64
-          tar -xzf "artifacts/comment-checker_${TAG}_linux_arm64.tar.gz" -C /tmp/comment-checker-npm/linux-arm64
-          tar -xzf "artifacts/comment-checker_${TAG}_linux_amd64.tar.gz" -C /tmp/comment-checker-npm/linux-amd64
-          unzip -o "artifacts/comment-checker_${TAG}_windows_amd64.zip" -d /tmp/comment-checker-npm/windows-amd64
-
-          cp /tmp/comment-checker-npm/darwin-arm64/comment-checker npm/comment-checker/vendor/darwin-arm64/comment-checker
-          cp /tmp/comment-checker-npm/darwin-amd64/comment-checker npm/comment-checker/vendor/darwin-x64/comment-checker
-          cp /tmp/comment-checker-npm/linux-arm64/comment-checker npm/comment-checker/vendor/linux-arm64/comment-checker
-          cp /tmp/comment-checker-npm/linux-amd64/comment-checker npm/comment-checker/vendor/linux-x64/comment-checker
-          cp /tmp/comment-checker-npm/windows-amd64/comment-checker.exe npm/comment-checker/vendor/win32-x64/comment-checker.exe
-
-          chmod +x npm/comment-checker/vendor/darwin-arm64/comment-checker
-          chmod +x npm/comment-checker/vendor/darwin-x64/comment-checker
-          chmod +x npm/comment-checker/vendor/linux-arm64/comment-checker
-          chmod +x npm/comment-checker/vendor/linux-x64/comment-checker
+      - name: Prepare npm packages
+        run: bash .github/scripts/prepare-npm-packages.sh "${{ steps.version.outputs.version }}" "${{ github.ref_name }}" artifacts
 
       - name: Test npm package
         run: node --test npm/comment-checker/*.test.js
 
       - name: Verify npm package contents
-        run: |
-          set -euo pipefail
-          root_pack=$(cd npm/comment-checker && npm pack --dry-run --json)
-          echo "$root_pack"
-          jq -e 'has("optionalDependencies") | not' npm/comment-checker/package.json
-          echo "$root_pack" | jq -e '
-            .[0].files
-            | map(.path)
-            | contains([
-                "cli.js",
-                "index.js",
-                "package.json",
-                "postinstall.js",
-                "vendor/darwin-arm64/comment-checker",
-                "vendor/darwin-x64/comment-checker",
-                "vendor/linux-arm64/comment-checker",
-                "vendor/linux-x64/comment-checker",
-                "vendor/win32-x64/comment-checker.exe"
-              ])
-              and all(.[]; startswith("bin/") | not)
-          '
-          echo "$root_pack" | jq -e '
-            .[0].files
-            | any(.path == "vendor/darwin-arm64/comment-checker" and .mode == 493)
-              and any(.path == "vendor/darwin-x64/comment-checker" and .mode == 493)
-              and any(.path == "vendor/linux-arm64/comment-checker" and .mode == 493)
-              and any(.path == "vendor/linux-x64/comment-checker" and .mode == 493)
-          '
+        run: bash .github/scripts/verify-npm-packages.sh "${{ steps.version.outputs.version }}"
 
-      - name: Publish root package to npm
+      - name: Publish npm packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-        run: |
-          cd npm/comment-checker
-          npm publish --access public --provenance
+        run: bash .github/scripts/publish-npm-packages.sh "${{ steps.version.outputs.version }}"
