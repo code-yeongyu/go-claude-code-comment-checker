@@ -113,10 +113,30 @@ archive="$work/notarize.zip"
 mkdir "$work/payload"
 cp "${files[@]}" "$work/payload/"
 ditto -c -k --keepParent "$work/payload" "$archive"
-result="$(xcrun notarytool submit "$archive" "${notary[@]}" --wait --timeout 1h --output-format json)"
-submission="$(jq -r '.id // empty' <<<"$result")"
-status="$(jq -r '.status // empty' <<<"$result")"
-echo "notarization ${submission:-<none>}: ${status:-<none>}"
+# notarytool --wait gives up on the first transient polling error (NSURLErrorDomain -1001)
+# while Apple keeps processing, so submit once and poll the submission ourselves.
+submission="$(xcrun notarytool submit "$archive" "${notary[@]}" --output-format json | jq -r '.id // empty')"
+if [ -z "$submission" ]; then
+  echo "::error::notarytool submit returned no submission id" >&2
+  exit 1
+fi
+echo "notarization ${submission} submitted"
+deadline=$(( $(date +%s) + ${NOTARY_TIMEOUT_SECONDS:-3600} ))
+status=""
+while :; do
+  if info="$(xcrun notarytool info "$submission" "${notary[@]}" --output-format json 2>/dev/null)"; then
+    status="$(jq -r '.status // empty' <<<"$info")"
+  else
+    echo "notarytool info failed transiently; retrying" >&2
+  fi
+  [ -n "$status" ] && [ "$status" != "In Progress" ] && break
+  if [ "$(date +%s)" -ge "$deadline" ]; then
+    echo "::error::notarization ${submission} still ${status:-unknown} after ${NOTARY_TIMEOUT_SECONDS:-3600}s" >&2
+    exit 1
+  fi
+  sleep "${NOTARY_POLL_SECONDS:-30}"
+done
+echo "notarization ${submission}: ${status}"
 if [ "$status" != "Accepted" ]; then
   if [ -n "$submission" ]; then
     xcrun notarytool log "$submission" "${notary[@]}" || true
