@@ -6,9 +6,13 @@ VERSION="$1"
 ROOT=npm/comment-checker
 KEYS=(darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-x64)
 
-root_pack=$(cd "$ROOT" && npm pack --dry-run --json)
-echo "$root_pack" | jq -e '
-  .[0].files
+# npm 11 prints an array of packs, npm 12 an object keyed by package name.
+pack_manifest() {
+  (cd "$1" && npm pack --dry-run --json) | jq 'if type == "array" then .[0] else first(.[]) end'
+}
+
+pack_manifest "$ROOT" | jq -e '
+  .files
   | map(.path)
   | sort == ["cli.js", "index.js", "package.json", "postinstall.js"]
 '
@@ -21,10 +25,9 @@ for key in "${KEYS[@]}"; do
   binary=comment-checker
   mode=493
   if [ "$key" = win32-x64 ]; then binary=comment-checker.exe; fi
-  pack=$(cd "$package" && npm pack --dry-run --json)
-  echo "$pack" | jq -e --arg bin "bin/$binary" --arg v "$VERSION" --argjson mode "$mode" '
-    .[0].version == $v
-    and (.[0].files | map(.path) | sort == [$bin, "package.json"])
-    and (.[0].files | any(.path == $bin and .size > 1000000 and (.mode == $mode or ($bin | endswith(".exe")))))
+  pack_manifest "$package" | jq -e --arg bin "bin/$binary" --arg v "$VERSION" --argjson mode "$mode" '
+    .version == $v
+    and (.files | map(.path) | sort == [$bin, "package.json"])
+    and (.files | any(.path == $bin and .size > 1000000 and (.mode == $mode or ($bin | endswith(".exe")))))
   '
 done
