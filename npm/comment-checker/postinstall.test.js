@@ -100,6 +100,38 @@ test("main exits non-zero when installation fails", async () => {
   assert.match(errors.join("\n"), /download failed/);
 });
 
+test("install skips download when the platform package is installed", async () => {
+  // given
+  const root = tempDir();
+  const logs = [];
+  try {
+    const baseDir = join(root, "node_modules", "@code-yeongyu", "comment-checker");
+    const platformDir = join(root, "node_modules", "@code-yeongyu", "comment-checker-linux-x64");
+    mkdirSync(baseDir, { recursive: true });
+    mkdirSync(join(platformDir, "bin"), { recursive: true });
+    writeFileSync(join(platformDir, "package.json"), "{}");
+    writeFileSync(join(platformDir, "bin", "comment-checker"), "");
+
+    // when
+    await postinstall.install({
+      arch: "x64",
+      baseDir,
+      downloadFile: async () => {
+        throw new Error("download should not run");
+      },
+      log: (message) => {
+        logs.push(message);
+      },
+      platform: "linux",
+    });
+
+    // then
+    assert.match(logs.join("\n"), /Using linux-x64 binary from .*comment-checker-linux-x64/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("install skips download when bundled binary exists", async () => {
   // given
   const root = tempDir();
