@@ -55,11 +55,14 @@ fn detect_given_python_docstring_with_docstrings_returns_docstring() {
 fn detect_given_unsupported_extension_returns_empty_list() {
     // given
     let detector = CommentDetector::new();
+    let code = "# This is a comment\n// and another\nprint('hello')";
 
     // when
-    let comments = detector.detect("some random content", "test.xyz", false);
+    let supported = detector.detect(code, "test.py", false);
+    let comments = detector.detect(code, "test.xyz", false);
 
-    // then
+    // then: the same comment-bearing bytes yield comments for a supported extension, none for an unsupported one
+    assert!(!supported.is_empty());
     assert!(comments.is_empty());
 }
 

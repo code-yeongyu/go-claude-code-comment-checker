@@ -216,19 +216,6 @@ fn agent_memo_filter_given_changed_from_returns_true() {
 }
 
 #[test]
-fn agent_memo_filter_given_late_switched_pattern_returns_true() {
-    // given
-    let filter = AgentMemoFilter;
-    let comment = line("// Switched from old to new");
-
-    // when
-    let result = filter.is_agent_memo(&comment);
-
-    // then
-    assert!(result);
-}
-
-#[test]
 fn agent_memo_filter_given_ported_english_patterns_returns_true() {
     // given
     let filter = AgentMemoFilter;
@@ -248,6 +235,7 @@ fn agent_memo_filter_given_ported_english_patterns_returns_true() {
         line("# Converted from callbacks to state machine"),
         line("# Migrated to the new parser"),
         line("# Switched from old code path"),
+        line("// Switched from old to new"),
         line("# Replaced temporary formatter"),
         line("# Deleted stale branch"),
         line("# Before this the parser was recreated"),
