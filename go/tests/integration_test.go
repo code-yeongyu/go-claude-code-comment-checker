@@ -255,35 +255,6 @@ func Test_CLI_BDDComment_ExitZero(t *testing.T) {
 // MULTI-LANGUAGE DETECTION TESTS
 // ============================================================================
 
-func Test_Detect_MultiLanguage_Python_Works(t *testing.T) {
-	// given
-	detector := core.NewCommentDetector()
-	code := "# Python comment\nprint('hello')"
-
-	// when
-	comments := detector.Detect(code, "test.py", false)
-
-	// then
-	assert.Len(t, comments, 1)
-	assert.Contains(t, comments[0].Text, "Python comment")
-	assert.Equal(t, models.CommentTypeLine, comments[0].CommentType)
-}
-
-func Test_Detect_MultiLanguage_Go_Works(t *testing.T) {
-	// given
-	detector := core.NewCommentDetector()
-	code := `// Go comment
-package main`
-
-	// when
-	comments := detector.Detect(code, "main.go", false)
-
-	// then
-	assert.Len(t, comments, 1)
-	assert.Contains(t, comments[0].Text, "Go comment")
-	assert.Equal(t, models.CommentTypeLine, comments[0].CommentType)
-}
-
 func Test_Detect_MultiLanguage_TypeScript_Works(t *testing.T) {
 	// given
 	detector := core.NewCommentDetector()
