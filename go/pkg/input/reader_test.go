@@ -39,7 +39,8 @@ func Test_ReadFile_UTF8EncodedFile_ReturnsContent(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "utf8_test.py")
-	content := "# cafe comment\nprint('hello')"
+	// Multibyte UTF-8 (é is 2 bytes, 한 3 bytes, ☕ 3 bytes): a Latin-1 decode would turn each into several characters.
+	content := "# café 한글 ☕ comment\nprint('héllo')"
 	err := os.WriteFile(filePath, []byte(content), 0644)
 	assert.NoError(t, err)
 
@@ -47,8 +48,7 @@ func Test_ReadFile_UTF8EncodedFile_ReturnsContent(t *testing.T) {
 	result := ReadFile(filePath)
 
 	// then
-	assert.Contains(t, result, "cafe comment")
-	assert.Contains(t, result, "print('hello')")
+	assert.Equal(t, content, result)
 }
 
 func Test_ReadFile_Latin1EncodedFile_FallbackToLatin1(t *testing.T) {

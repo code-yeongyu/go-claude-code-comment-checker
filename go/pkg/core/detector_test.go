@@ -70,12 +70,14 @@ def hello():
 func Test_Detect_UnsupportedExtension_ReturnsEmptyList(t *testing.T) {
 	// given
 	detector := NewCommentDetector()
-	code := "some random content"
+	code := "# This is a comment\n// and another\nprint('hello')"
 
 	// when
+	supported := detector.Detect(code, "test.py", false)
 	comments := detector.Detect(code, "test.xyz", false)
 
-	// then
+	// then: the same comment-bearing bytes yield comments for a supported extension, none for an unsupported one
+	assert.NotEmpty(t, supported)
 	assert.Empty(t, comments)
 }
 
